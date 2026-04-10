@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
-import 'package:freestyle_calculator/Data/pair_info.dart';
+import 'package:freestyle_calculator/Data/pair_data.dart';
+import 'package:freestyle_calculator/Pages/pair_edit_page.dart';
 import 'package:freestyle_calculator/main.dart';
 
 class PairsPage extends StatefulWidget {
@@ -63,12 +65,20 @@ class PairLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        CellWithText(width: 2, text: pair.haldlerName),
-        CellWithText(width: 1, text: pair.dogType),
-        CellWithText(width: 1, text: pair.dogName),
-      ],
+    return MaterialButton(
+      onPressed: () => Navigator.of(context).push(
+        CupertinoPageRoute(
+          title: "$pair#{pair.startNumber}",
+          builder: (context) => PairEditPage(pair: pair),
+        ),
+      ),
+      child: Row(
+        children: [
+          CellWithText(width: 2, text: pair.haldlerName),
+          CellWithText(width: 1, text: pair.dogType),
+          CellWithText(width: 1, text: pair.dogName),
+        ],
+      ),
     );
   }
 }

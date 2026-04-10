@@ -63,6 +63,7 @@ class CellWithText extends StatelessWidget {
           color: Theme.of(context).colorScheme.inversePrimary,
         ),
         margin: EdgeInsets.all(5),
+        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
         child: Text(
           "text",
           style: Theme.of(context).textTheme.bodyMedium,

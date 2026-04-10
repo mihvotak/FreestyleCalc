@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:freestyle_calculator/Data/pair_info.dart';
+import 'package:freestyle_calculator/Data/pair_data.dart';
 
 class PairEditPage extends StatefulWidget {
   const PairEditPage({super.key, required this.pair});
@@ -12,7 +12,7 @@ class PairEditPage extends StatefulWidget {
 
 class _PairEditPageState extends State<PairEditPage> {
 
-  void _incrementCounter() {
+  void _addPair() {
     setState(() {
       //
     });
@@ -40,7 +40,7 @@ class _PairEditPageState extends State<PairEditPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: _addPair,
         tooltip: 'Increment',
         child: const Icon(Icons.back_hand),
       ),
