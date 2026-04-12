@@ -1,50 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/pair_data.dart';
+import 'package:freestyle_calculator/Pages/elements.dart';
 
-class PairEditPage extends StatefulWidget {
+class PairEditPage extends StatelessWidget {
   const PairEditPage({super.key, required this.pair});
 
   final Pair pair;
 
-  @override
-  State<PairEditPage> createState() => _PairEditPageState();
-}
-
-class _PairEditPageState extends State<PairEditPage> {
-
-  void _addPair() {
-    setState(() {
-      //
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text("${widget.pair.startNumber}"),
+        title: ListenableBuilder(
+          listenable: pair,
+          builder: (context, child) {
+            return Text("${pair.startNumber}: ${pair.handlerName}");
+          },
+        ),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: .center,
           children: [
-            Text(
-              'Имя хендлера',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            TextField(
-              
-            )
+            EditableBox('Имя хендлера', pair.handlerName, (value) => pair.setHaldlerName(value), false),
+            EditableBox('Порода собаки', pair.dogBreed, (value) => pair.setDogBreed(value), false),
+            EditableBox('Кличка собаки', pair.dogName, (value) => pair.setDogName(value), false),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addPair,
-        tooltip: 'Increment',
-        child: const Icon(Icons.back_hand),
+        onPressed: () => { pair.remove(), Navigator.of(context).pop() },
+        tooltip: 'Remove',
+        child: const Icon(Icons.remove_circle_outline),
       ),
     );
   }
-
 }
+

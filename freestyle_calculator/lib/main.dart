@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
-import 'package:freestyle_calculator/Pages/pairs_page.dart';
+import 'package:freestyle_calculator/Pages/competition_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -42,34 +42,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Color.fromARGB(255, 205, 205, 205), // Changes all text and icon colors
         ),
       ),
-      home: PairsPage(competition: _competition, title: 'Pairs Page'),
-    );
-  }
-}
-
-
-class CellWithText extends StatelessWidget {
-  const CellWithText({super.key, required this.width, required this.text});
-  
-  final int width;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: width,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.inversePrimary,
-        ),
-        margin: EdgeInsets.all(5),
-        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-        child: Text(
-          "text",
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      )
-      //width: 40,
+      home: CompetitionPage(_competition),
     );
   }
 }

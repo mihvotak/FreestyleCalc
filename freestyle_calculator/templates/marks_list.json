@@ -1,0 +1,59 @@
+{
+	"blocks": [
+		{
+			"name": "Первый блок",
+			"lines": [
+				{
+					"name" : "Первая оценка",
+					"maxValue" : 5,
+					"isPenalty" : false
+				},
+				{
+					"name" : "Вторая оценка",
+					"maxValue" : 4,
+					"isPenalty" : false
+				},
+			]
+		},
+		{
+			"name": "Второй блок",
+			"lines": [
+				{
+					"name" : "Третья оценка",
+					"maxValue" : 5,
+					"isPenalty" : false
+				},
+				{
+					"name" : "Четвёртая оценка",
+					"maxValue" : 4,
+					"isPenalty" : false
+				},
+				{
+					"name" : "Пятая оценка",
+					"maxValue" : 3,
+					"isPenalty" : false
+				},
+			]
+		},	
+		{
+			"name": "Блок штрафов",
+			"lines": [
+				{
+					"name" : "Первый штраф",
+					"maxValue" : 2,
+					"isPenalty" : true
+				},
+				{
+					"name" : "Второй штраф",
+					"maxValue" : 0.1,
+					"isPenalty" : true
+				},
+				{
+					"name" : "Третий штраф",
+					"maxValue" : 0.5,
+					"isPenalty" : true
+				},
+			]
+		},	
+	]
+}
