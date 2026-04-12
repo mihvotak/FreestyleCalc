@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/mark_list.dart';
-import 'package:freestyle_calculator/Pages/competition_page.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 import 'package:freestyle_calculator/Pages/mark_line_edit_page.dart';
 

@@ -81,16 +81,27 @@ class MarkLine extends ChangeNotifier {
   }
 }
 
-class JudgeMarks{
+class JudgeMarks extends ChangeNotifier {
   final List<MarksBlock> blocks = [];
   double sum = 0;
+
+  void updateSum() {
+    sum = blocks.fold(0, (s, m) => s + m.sum);
+    notifyListeners();
+  }
 }
 
-class MarksBlock {
+class MarksBlock extends ChangeNotifier {
   final List<Mark> marks = [];
   double sum = 0;
+
+  void updateSum(LinesBlock block) {
+    sum = marks.fold(0, (s, m) => s + (block.lines[marks.indexOf(m)].isPenalty ? -1 : 1) * (m.markValue != null ? m.markValue! : 0));
+    notifyListeners();
+  }
 }
 
 class Mark {
-  double? value;
+  double? markValue;
+  //double getsignedValue(MarkLine line) { return (line.isPenalty ? -1 : 1) * (markValue != null ? markValue! : 0); }
 }

@@ -83,3 +83,44 @@ class CellWithText extends StatelessWidget {
     );
   }
 }
+
+class LineButton extends StatelessWidget {
+  const LineButton(this.text, this.onPressed, {super.key});
+
+  final String text;
+  final Function() onPressed;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.all(10),
+      child: MaterialButton(
+        padding: EdgeInsets.all(20),
+        onPressed: onPressed,
+        color: Theme.of(context).colorScheme.inversePrimary,
+        child: Text(text),
+      ),
+    );
+  }
+}
+class SquareButton extends StatelessWidget {
+  const SquareButton(this.iconData, this.onPressed, {super.key});
+
+  final IconData iconData;
+  final Function() onPressed;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      margin: EdgeInsets.all(2),
+      child: MaterialButton(
+        padding: EdgeInsets.all(10),
+        onPressed: onPressed,
+        color: Theme.of(context).colorScheme.inversePrimary,
+        child: Icon(iconData),
+      ),
+    );
+  }
+}

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:freestyle_calculator/Data/competition.dart';
-import 'package:freestyle_calculator/Pages/competition_page.dart';
+import 'package:freestyle_calculator/Data/model.dart';
+import 'package:freestyle_calculator/Pages/start_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -9,7 +9,7 @@ void main() {
 class MyApp extends StatelessWidget {
   MyApp({super.key});
 
-  final Competition _competition = Competition();
+  final Model model = Model();
 
   // This widget is the root of your application.
   @override
@@ -35,6 +35,7 @@ class MyApp extends StatelessWidget {
         colorScheme: .fromSeed(seedColor: const Color.fromARGB(255, 4, 192, 213), brightness: Brightness.dark, contrastLevel: .5),
         textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Color.fromARGB(255, 218, 218, 218)), // Standard body text
+          bodySmall: TextStyle(color: Color.fromARGB(255, 118, 118, 118)), // Standard body text
           headlineSmall: TextStyle(color: Color.fromARGB(255, 152, 152, 152)), // Large headlines
           titleSmall: TextStyle(color: Colors.black), // Large headlines
         ),
@@ -42,7 +43,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Color.fromARGB(255, 205, 205, 205), // Changes all text and icon colors
         ),
       ),
-      home: CompetitionPage(_competition),
+      home: SatrtPage(model),
     );
   }
 }

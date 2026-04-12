@@ -12,7 +12,7 @@
 					"name" : "Вторая оценка",
 					"maxValue" : 4,
 					"isPenalty" : false
-				},
+				}
 			]
 		},
 		{
@@ -32,7 +32,7 @@
 					"name" : "Пятая оценка",
 					"maxValue" : 3,
 					"isPenalty" : false
-				},
+				}
 			]
 		},	
 		{
@@ -52,8 +52,8 @@
 					"name" : "Третий штраф",
 					"maxValue" : 0.5,
 					"isPenalty" : true
-				},
+				}
 			]
-		},	
+		}
 	]
 }

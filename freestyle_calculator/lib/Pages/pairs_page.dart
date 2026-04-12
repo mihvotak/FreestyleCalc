@@ -74,13 +74,17 @@ class PairLine extends StatelessWidget {
           builder: (context) => PairEditPage(pair: pair),
         ),
       ),
-      child: Row(
-        children: [
-          Text("${pair.startNumber}"),
-          CellWithText(width: 2, text: pair.handlerName),
-          CellWithText(width: 1, text: pair.dogBreed),
-          CellWithText(width: 1, text: pair.dogName),
-        ],
+      child: ListenableBuilder(
+        listenable: pair,
+        builder: (context, child) => Row(
+          children: [
+            Text("${pair.startNumber}"),
+            CellWithText(width: 9, text: pair.classKind.toString()),
+            CellWithText(width: 14, text: pair.handlerName),
+            CellWithText(width: 8, text: pair.dogBreed),
+            CellWithText(width: 8, text: pair.dogName),
+          ],
+        ),
       ),
     );
   }
