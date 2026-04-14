@@ -30,21 +30,21 @@ class PairResultPage extends StatelessWidget {
           ],
         ),
       ),
-      body: ListenableBuilder(
-        listenable: pair,
-        builder: (context, child) {
-          return  FocusTraversalGroup(
-            policy: OrderedTraversalPolicy(),
-            child: Column(
-              children: [
-                for (int b = 0; b < competition.marksList.blocks.length; b++)
-                Column(
-                  children: [
-                    Row(
+      body: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              for (int b = 0; b < competition.marksList.blocks.length; b++)
+              Column(
+                children: [
+                  Container(
+                    color: Theme.of(context).highlightColor,
+                    child: Row(
                       spacing: 5,
                       children: [
                         Expanded(
-                          flex: 10,
+                          flex: 8,
                           child: Container(
                             decoration: BoxDecoration(
                               color: Theme.of(context).hoverColor,
@@ -55,7 +55,6 @@ class PairResultPage extends StatelessWidget {
                         ),
                         for (int j = 0; j < competition.judges.length; j++)
                         Expanded(
-                          //flex: 10,
                           child: ListenableBuilder(
                             listenable: pair.judgesMarks[j].blocks[b],
                             builder: (context, child) {
@@ -69,43 +68,42 @@ class PairResultPage extends StatelessWidget {
                         ),
                       ],
                     ), 
-                    for (int l = 0; l < competition.marksList.blocks[b].lines.length; l++)
-                    PairMapksLine(competition, pair, b, l),
-                  ]
-                ),
-                Row(
-                  spacing: 5,
-                  children: [
-                    Expanded(
-                      flex: 10,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).hoverColor,
-                        ),
-                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-                        child: Text("Сумма"),
+                  ),
+                  for (int l = 0; l < competition.marksList.blocks[b].lines.length; l++)
+                  PairMapksLine(competition, pair, b, l),
+                ]
+              ),
+              Row(
+                spacing: 5,
+                children: [
+                  Expanded(
+                    flex: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).hoverColor,
                       ),
+                      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+                      child: Text("Сумма"),
                     ),
-                    for (int j = 0; j < competition.judges.length; j++)
-                    Expanded(
-                      //flex: 10,
-                      child: ListenableBuilder(
-                        listenable: pair.judgesMarks[j],
-                        builder: (context, child) {
-                          return Text(
-                            textAlign: .center,
-                            '${pair.judgesMarks[j].sum}',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          );
-                        },
-                      ),
+                  ),
+                  for (int j = 0; j < competition.judges.length; j++)
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: pair.judgesMarks[j],
+                      builder: (context, child) {
+                        return Text(
+                          textAlign: .center,
+                          pair.judgesMarks[j].sum.toStringAsFixed(1),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        );
+                      },
                     ),
-                  ],
-                ), 
-              ],
-            ),
-          );
-        },
+                  ),
+                ],
+              ), 
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -125,7 +123,7 @@ class PairMapksLine extends StatelessWidget {
       spacing: 5,
       children: [
         Expanded(
-          flex: 10,
+          flex: 8,
           child: Container(
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.inversePrimary,
@@ -148,14 +146,10 @@ class PairMapksLine extends StatelessWidget {
                 validator: (value) => (value == null || value == "") ? null : (double.tryParse(value) == null) ? 'число' : (double.parse(value) > competition.marksList.blocks[blockIndex].lines[lineIndex].maxValue) ? "> ${competition.marksList.blocks[blockIndex].lines[lineIndex].maxValue}" : (double.parse(value) < 0) ? "< 0" : null,
                 decoration: InputDecoration(
                   errorStyle: TextStyle(color: Colors.orangeAccent), // Custom error text color
-                  //errorBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.red)),
-                  focusedErrorBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(
-                      color: Colors.orange, 
-                      width: 5
-                    )
-                  ),
+                  errorBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.red, width: 5)),
+                  focusedErrorBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.orange, width: 5)),
                 ),
+                textInputAction: TextInputAction.next,
                 textAlign: .center,
                 keyboardType: TextInputType.number,
                 controller:TextEditingController(
@@ -165,7 +159,8 @@ class PairMapksLine extends StatelessWidget {
                   pair.judgesMarks[i].blocks[blockIndex].marks[lineIndex].markValue = double.tryParse(value),
                   pair.judgesMarks[i].blocks[blockIndex].updateSum(competition.marksList.blocks[blockIndex]),
                   pair.judgesMarks[i].updateSum(),
-                  pair.updateSum()
+                  pair.updateSum(),
+                  competition.updatePlaces()
                 },
               ),
             ),

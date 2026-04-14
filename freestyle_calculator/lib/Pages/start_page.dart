@@ -20,56 +20,60 @@ class SatrtPage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text("Соревнования")
       ),
-      body: Column(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Container(
-                color: Theme.of(context).focusColor,
-                constraints: BoxConstraints(
-                  minWidth: constraints.maxWidth * 0.5,
-                  minHeight: 300,
-                ),
-                child: ListenableBuilder(
-                  listenable: model,
-                  builder: (context, child) => 
-                  model.competition != null ? 
-                  CompetitionWidget(model.competition!) : 
-                  Center(
-                    child: Column(
-                      children: [
-                        Text("(пусто)"),
-                      ],
+      body: SingleChildScrollView(
+        child: ListenableBuilder(
+          listenable: model,
+          builder: (context, child) =>  Column(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    color: Theme.of(context).focusColor,
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth * 0.5,
+                      minHeight: 300,
                     ),
-                  ),
-                )
-              );
-            }
+                    child: model.competition != null ? 
+                      CompetitionWidget(model, model.competition!) : 
+                      Center(
+                        child: Column(
+                          children: [
+                            Text("(пусто)"),
+                          ],
+                        ),
+                      ),
+                  );
+                }
+              ),
+              ListenableBuilder(
+                listenable: model,
+                builder: (context, child) => 
+                model.error != null ? MaterialButton(
+                  onPressed: () => model.setError(null),
+                  child: Container(
+                  color: const Color.from(alpha: 1, red: 0.431, green: 0.078, blue: 0.055), 
+                  child: Text(model.error!),
+                  )
+                ) : 
+                Container(),
+              ),
+              LineButton("Создать новый", model.createFromTemplate),
+              LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
+              RecentCompetitionsWidget(model),
+            ],
           ),
-          ListenableBuilder(
-            listenable: model,
-            builder: (context, child) => 
-            model.error != null ? MaterialButton(
-              onPressed: () => model.setError(null),
-              child: Container(
-              color: const Color.from(alpha: 1, red: 0.431, green: 0.078, blue: 0.055), 
-              child: Text(model.error!),
-              )
-            ) : 
-            Container(),
-          ),
-          LineButton("Создать новый", model.createFromTemplate),
-          LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
-        ],
+        ),
       ),
     );
   }
 }
 
 class CompetitionWidget extends StatelessWidget {
-  const CompetitionWidget(this.competition, {super.key});
+  CompetitionWidget(this.model, this.competition, {super.key});
 
+  final Model model; 
   final Competition competition;
+  final ValueNotifier<bool> editName = ValueNotifier(false);
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,28 @@ class CompetitionWidget extends StatelessWidget {
         color: Theme.of(context).hoverColor,
         child: Column(
           children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: editName, 
+              builder: (context, value, child) => Container(
+                padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                color: Theme.of(context).hoverColor,
+                child: Row(
+                  mainAxisAlignment: .center,
+                  children: [
+                    value ? Expanded(
+                      child: TextField(
+                        controller: TextEditingController(text: competition.name),
+                        onChanged: (value) => competition.name = value,
+                      ),
+                    ) :
+                    Expanded(
+                      child: Text(competition.name, textAlign: .center)
+                    ),
+                    SquareButton(Icons.edit, () => editName.value = !editName.value)
+                  ],
+                ),
+              ),
+            ),
             LineButton(
               "Участники (${competition.pairs.length})",
               () => Navigator.of(context).push(
@@ -111,8 +137,72 @@ class CompetitionWidget extends StatelessWidget {
                 ),
               ),
             ),
+            ValueListenableBuilder<bool>(
+              valueListenable: competition.saved, 
+              builder: (context, value, child) => Container(
+                padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                color: Theme.of(context).hoverColor,
+                child: Row(
+                  mainAxisAlignment: .center,
+                  children: [
+                    Expanded(
+                      child: value ? 
+                      Text("Сохранено", textAlign: .center) :
+                      Text("Не сохранено", textAlign: .center),
+                    ),
+                    SquareButton(Icons.save, () => model.saveCurrent()),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class RecentCompetitionsWidget extends StatelessWidget {
+  const RecentCompetitionsWidget(this. model, {super.key});
+
+  final Model model;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: model.saves,
+      builder: (context, child) => Container(
+          color: Theme.of(context).focusColor,
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                color: Theme.of(context).hoverColor,
+                child: Row(
+                  mainAxisAlignment: .center,
+                  children: [
+                    Expanded(
+                      child: Text("Прошлые соревнования", textAlign: .center),
+                    ),
+                    SquareButton(Icons.clear, model.clearRecent)
+                  ],
+                ),
+              ),
+              model.saves.notes.isEmpty ? 
+              Text("(пусто))", textAlign: .center) : 
+              Column(
+                children: [
+                  for (var note in model.saves.notes)
+                    if (model.competition == null || note.id != model.competition!.id)
+                      MaterialButton(
+                        height: 50,
+                        onPressed: () => model.loadCompetition(note.id),
+                        child: Text(note.name),
+                      ),
+                ],
+              ),
+            ],
+          ),
       ),
     );
   }

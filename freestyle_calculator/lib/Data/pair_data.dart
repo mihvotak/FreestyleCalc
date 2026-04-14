@@ -3,46 +3,92 @@ import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/mark_list.dart';
 
 enum ClassKind {
-  OutOfScoring,
-  FreNewbies,
-  FreOpen,
-  FreVeterans,
-  FreDebut,
-  FreProgress,
-  FreMaster,
-  HtmNewbies,
-  HtmOpen,
-  HtmVeterans,
-  HtmDebut,
-  HtmProgress,
-  HtmMaster;
+  outOfScoring,
+  freNewbies,
+  freOpen,
+  freVeterans,
+  freDebut,
+  freProgress,
+  freMaster,
+  htmNewbies,
+  htmOpen,
+  htmVeterans,
+  htmDebut,
+  htmProgress,
+  htmMaster;
+
+  static ClassKind parse(String classKindAsString) {
+    for (ClassKind element in ClassKind.values) {
+      if (element.toString() == classKindAsString) {
+          return element;
+      }
+    }
+    return ClassKind.outOfScoring;
+  }
   
-  @override
-  String toString() => name;
+  String toUserString()
+  {
+    switch (this){
+      case ClassKind.outOfScoring:
+        return "В/З";
+      case ClassKind.freNewbies:
+        return "Ф.Н";
+      case ClassKind.freOpen:
+        return "Ф.О";
+      case ClassKind.freVeterans:
+        return "Ф.В";
+      case ClassKind.freDebut:
+        return "Ф.Д";
+      case ClassKind.freProgress:
+        return "Ф.П";
+      case ClassKind.freMaster:
+        return "Ф.М";
+      case ClassKind.htmNewbies:
+        return "Х.Н";
+      case ClassKind.htmOpen:
+        return "Х.О";
+      case ClassKind.htmVeterans:
+        return "Х.В";
+      case ClassKind.htmDebut:
+        return "Х.Д";
+      case ClassKind.htmProgress:
+        return "Х.П";
+      case ClassKind.htmMaster:
+        return "Х.М";
+    }
+  }
 }
 
 class Pair extends ChangeNotifier {
   Pair(this.competition, this.startNumber);
+  Pair.fromJson(Map<String, dynamic> json)
+    : startNumber = json['startNumber'] as int,
+      classKind = ClassKind.parse(json['classKind'] as String),
+      handlerName = json['handlerName'] as String,
+      dogBreed = json['dogBreed'] as String,
+      dogName = json['dogName'] as String,
+      judgesMarks = (json['judgesMarks'] as List<Object?>).cast<Map<String,Object?>>().map<JudgeMarks>(JudgeMarks.fromJson).toList();
+  Map<String, dynamic> toJson() => {'startNumber' : startNumber, 'classKind': classKind.toString(), 'handlerName': handlerName, 'dogBreed': dogBreed, 'dogName': dogName, 'judgesMarks': judgesMarks.map((judgeMark) => judgeMark.toJson()).toList()};
   
-  final Competition competition;
+  late Competition competition;
 
   int startNumber = 0;
-  ClassKind classKind = ClassKind.OutOfScoring;
+  ClassKind classKind = ClassKind.outOfScoring;
   String handlerName = "";
-  String dogName = "";
   String dogBreed = "";
-
-  final List<JudgeMarks> judgesMarks = [];
+  String dogName = "";
+  
+  List<JudgeMarks> judgesMarks = [];
   double meanSum = 0;
   int? place; 
 
   void prepareMarks(Competition competition) {
     while (judgesMarks.length > competition.judges.length) { judgesMarks.removeLast(); }
-    while (judgesMarks.length < competition.judges.length) { judgesMarks.add(JudgeMarks()); }
+    while (judgesMarks.length < competition.judges.length) { judgesMarks.add(JudgeMarks([])); }
     for (int j = 0; j < competition.judges.length; j++) {
       var judgeMarks = judgesMarks[j];
       while (judgeMarks.blocks.length > competition.marksList.blocks.length) { judgeMarks.blocks.removeLast(); }
-      while (judgeMarks.blocks.length < competition.marksList.blocks.length) { judgeMarks.blocks.add(MarksBlock()); }
+      while (judgeMarks.blocks.length < competition.marksList.blocks.length) { judgeMarks.blocks.add(MarksBlock([])); }
       for (int b = 0; b < competition.marksList.blocks.length; b++) {
         var block = judgeMarks.blocks[b];
         while (block.marks.length > competition.marksList.blocks[b].lines.length) { block.marks.removeLast(); }

@@ -59,10 +59,12 @@ class ToggleBox extends StatelessWidget {
 }
 
 class CellWithText extends StatelessWidget {
-  const CellWithText({super.key, required this.width, required this.text});
+  const CellWithText({super.key, required this.width, required this.text, this.softWrap = true, this.overflow = false});
   
   final int width;
   final String text;
+  final bool softWrap;
+  final bool overflow;
 
   @override
   Widget build(BuildContext context) {
@@ -72,11 +74,14 @@ class CellWithText extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.inversePrimary,
         ),
-        margin: EdgeInsets.all(5),
+        margin: EdgeInsets.all(2),
         padding: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
         child: Text(
           text,
+          softWrap: softWrap,
+          overflow: overflow ? TextOverflow.visible : TextOverflow.fade,
           style: Theme.of(context).textTheme.bodyMedium,
+          textAlign: softWrap ? .left : .center,
         ),
       )
       //width: 40,

@@ -82,7 +82,12 @@ class MarkLine extends ChangeNotifier {
 }
 
 class JudgeMarks extends ChangeNotifier {
-  final List<MarksBlock> blocks = [];
+  JudgeMarks(this.blocks);
+  JudgeMarks.fromJson(Map<String, dynamic> json)
+    : blocks = (json['blocks'] as List<Object?>).cast<Map<String,Object?>>().map<MarksBlock>(MarksBlock.fromJson).toList();
+  Map<String, dynamic> toJson() => {'blocks': blocks.map((block) => block.toJson()).toList()};
+
+  final List<MarksBlock> blocks;
   double sum = 0;
 
   void updateSum() {
@@ -92,7 +97,12 @@ class JudgeMarks extends ChangeNotifier {
 }
 
 class MarksBlock extends ChangeNotifier {
-  final List<Mark> marks = [];
+  MarksBlock(this.marks);
+  MarksBlock.fromJson(Map<String, dynamic> json)
+    : marks = (json['marks'] as List<Object?>).cast<String?>().map<Mark>(Mark.fromJson).toList();
+  Map<String, dynamic> toJson() => {'marks': marks.map((mark) => mark.toJson()).toList()};
+
+  final List<Mark> marks;
   double sum = 0;
 
   void updateSum(LinesBlock block) {
@@ -102,6 +112,11 @@ class MarksBlock extends ChangeNotifier {
 }
 
 class Mark {
+  Mark();
+  Mark.fromJson(String? json)
+    : markValue = json == null ? null : double.parse(json);
+  String toJson() => markValue?.toString() ?? "null";
+
   double? markValue;
   //double getsignedValue(MarkLine line) { return (line.isPenalty ? -1 : 1) * (markValue != null ? markValue! : 0); }
 }

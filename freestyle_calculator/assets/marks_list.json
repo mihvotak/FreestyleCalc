@@ -5,12 +5,12 @@
 			"lines": [
 				{
 					"name" : "Первая оценка",
-					"maxValue" : 5,
+					"maxValue" : 5.0,
 					"isPenalty" : false
 				},
 				{
 					"name" : "Вторая оценка",
-					"maxValue" : 4,
+					"maxValue" : 4.0,
 					"isPenalty" : false
 				}
 			]
@@ -20,17 +20,17 @@
 			"lines": [
 				{
 					"name" : "Третья оценка",
-					"maxValue" : 5,
+					"maxValue" : 5.0,
 					"isPenalty" : false
 				},
 				{
 					"name" : "Четвёртая оценка",
-					"maxValue" : 4,
+					"maxValue" : 4.0,
 					"isPenalty" : false
 				},
 				{
 					"name" : "Пятая оценка",
-					"maxValue" : 3,
+					"maxValue" : 3.0,
 					"isPenalty" : false
 				}
 			]
@@ -40,7 +40,7 @@
 			"lines": [
 				{
 					"name" : "Первый штраф",
-					"maxValue" : 2,
+					"maxValue" : 2.0,
 					"isPenalty" : true
 				},
 				{

@@ -24,16 +24,19 @@ class ResultsPage extends StatelessWidget {
           return Column(
             children: [
               Container(
-                margin: EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  mainAxisAlignment: .center,
-                  children: [
-                    CellWithText(width: 1, text: "№"),
-                    CellWithText(width: 2, text: "Класс"),
-                    CellWithText(width: 8, text: "Пара"),
-                    CellWithText(width: 2, text: "Оценка"),
-                    CellWithText(width: 1, text: "М"),
-                  ], 
+                margin: EdgeInsets.symmetric(horizontal: 0),
+                child: IntrinsicHeight(
+                  child: Row(
+                    mainAxisAlignment: .center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CellWithText(width: 3, text: "№", softWrap: false, overflow: true),
+                      CellWithText(width: 4, text: "Кл."),
+                      CellWithText(width: 14, text: "Пара"),
+                      CellWithText(width: 5, text: "Оц."),
+                      CellWithText(width: 3, text: "М", softWrap: false, overflow: true),
+                    ], 
+                  ),
                 ),
               ),
               Expanded(
@@ -64,20 +67,25 @@ class PairLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialButton(
+      padding: EdgeInsets.all(0),
       onPressed: () => Navigator.of(context).push(
         CupertinoPageRoute(
           title: "$pair#{pair.startNumber}",
           builder: (context) => PairResultPage(competition, pair),
         ),
       ),
-      child: Row(
-        children: [
-          CellWithText(width: 1, text: pair.startNumber.toString()),
-          CellWithText(width: 2, text: pair.classKind.toString()),
-          CellWithText(width: 8, text: pair.handlerName),
-          CellWithText(width: 2, text: pair.meanSum.toString()),
-          CellWithText(width: 1, text: pair.place?.toString() ?? ""),
-        ],
+      child: IntrinsicHeight(
+        child: Row(
+          mainAxisAlignment: .center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CellWithText(width: 3, text: pair.startNumber.toString(), softWrap: false, overflow: true),
+            CellWithText(width: 4, text: pair.classKind.toUserString(), softWrap: false, overflow: true),
+            CellWithText(width: 14, text: pair.handlerName),
+            CellWithText(width: 5, text: pair.meanSum.toStringAsFixed(2), softWrap: false, overflow: true),
+            CellWithText(width: 3, text: pair.place?.toString() ?? "", softWrap: false, overflow: true),
+          ],
+        ),
       ),
     );
   }
