@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/model.dart';
+import 'package:freestyle_calculator/Pages/dialogs.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 import 'package:freestyle_calculator/Pages/judges_page.dart';
 import 'package:freestyle_calculator/Pages/marks_list_page.dart';
@@ -24,10 +25,12 @@ class SatrtPage extends StatelessWidget {
         child: ListenableBuilder(
           listenable: model,
           builder: (context, child) =>  Column(
+            spacing: 10,
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
                   return Container(
+                    margin: EdgeInsets.all(10),
                     color: Theme.of(context).focusColor,
                     constraints: BoxConstraints(
                       minWidth: constraints.maxWidth * 0.5,
@@ -57,8 +60,38 @@ class SatrtPage extends StatelessWidget {
                 ) : 
                 Container(),
               ),
-              LineButton("Создать новый", model.createFromTemplate),
-              LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
+              Container(
+                margin: EdgeInsets.all(10),
+                color: Theme.of(context).focusColor,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                      color: Theme.of(context).hoverColor,
+                      child: Row(
+                        mainAxisAlignment: .center,
+                        children: [
+                          Expanded(
+                            child: Text("Новый файл", textAlign: .center),
+                          ),
+                          SquareButton(model.expandNew ? Icons.expand_less : Icons.expand_more, model.changeExpandNew)
+                        ],
+                      ),
+                    ),
+                    if (model.expandNew)
+                      LineButton("Из шаблона", () { 
+                        if (model.competition != null && !model.competition!.saved.value) {
+                          Dialogs.showConfirmDialog(context, () => model.createFromTemplate(),
+                            'Не сохранено',
+                            'Текущий открытый файл не сохранён. При создании нового файла все изменения в текущем будут потеряны. Продолжить?'
+                          );
+                        }
+                        else { model.createFromTemplate(); }
+                      })
+                  ],
+                ),
+              ),
+              //LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
               RecentCompetitionsWidget(model),
             ],
           ),
@@ -170,8 +203,9 @@ class RecentCompetitionsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: model.saves,
+      listenable: model,
       builder: (context, child) => Container(
+          margin: EdgeInsets.all(10),
           color: Theme.of(context).focusColor,
           child: Column(
             children: [
@@ -182,23 +216,35 @@ class RecentCompetitionsWidget extends StatelessWidget {
                   mainAxisAlignment: .center,
                   children: [
                     Expanded(
-                      child: Text("Прошлые соревнования", textAlign: .center),
+                      child: Text("Сохранённые файлы", textAlign: .center),
                     ),
-                    SquareButton(Icons.clear, model.clearRecent)
+                    SquareButton(model.expandRecent ? Icons.expand_less : Icons.expand_more, model.changeExpandRecent)
                   ],
                 ),
               ),
+              if (model.expandRecent)
               model.saves.notes.isEmpty ? 
               Text("(пусто))", textAlign: .center) : 
               Column(
                 children: [
                   for (var note in model.saves.notes)
-                    if (model.competition == null || note.id != model.competition!.id)
-                      MaterialButton(
-                        height: 50,
-                        onPressed: () => model.loadCompetition(note.id),
-                        child: Text(note.name),
-                      ),
+                    LineButton('${note.name}${model.competition != null && model.competition!.id == note.id ? ' (открыт)' : ''}', () { 
+                      if (model.competition != null && !model.competition!.saved.value) {
+                        Dialogs.showConfirmDialog(context, 
+                          () => model.loadCompetition(note.id),
+                          'Не сохранено',
+                          'Текущий открытый файл не сохранён. При открытии другого файла все изменения в текущем будут потеряны. Продолжить?'
+                        );
+                      }
+                      else { model.loadCompetition(note.id); }
+                    }),
+                  LineButton('Удалить все', 
+                    () => Dialogs.showConfirmDialog(context, 
+                      model.clearRecent,
+                      'Удаление всех файлов',
+                      'Все сохранённые ранее данные будут удалены. Текущий файл (если открыт) останется в памяти. Увеерны что хотите этого?'
+                    )
+                  ),
                 ],
               ),
             ],

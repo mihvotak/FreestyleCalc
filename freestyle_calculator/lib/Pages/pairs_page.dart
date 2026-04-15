@@ -16,9 +16,10 @@ class PairsPage extends StatefulWidget {
 
 class _PairsPageState extends State<PairsPage> {
 
-  void _incrementCounter() {
+  void _addPair() {
     setState(() {
-      widget.competition.pairs.add(Pair(widget.competition, widget.competition.pairs.length + 1));
+      widget.competition.pairs.add(Pair(widget.competition.pairs.length + 1));
+      widget.competition.saved.value = false;
     });
   }
 
@@ -31,7 +32,8 @@ class _PairsPageState extends State<PairsPage> {
       ),
       body: Column(
         children: [
-          Align(
+          Container(
+            margin: EdgeInsets.all(0),
             alignment: .center,
             child: Text(
               'всего пар: ${widget.competition.pairs.length}',
@@ -44,7 +46,7 @@ class _PairsPageState extends State<PairsPage> {
                 mainAxisAlignment: .start,
                 children: [
                   for (var pair in widget.competition.pairs)
-                    PairLine(pair: pair),
+                    PairLine(competition: widget.competition, pair: pair),
                 ],
               ),
             ),
@@ -52,7 +54,7 @@ class _PairsPageState extends State<PairsPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: _addPair,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),
@@ -61,31 +63,37 @@ class _PairsPageState extends State<PairsPage> {
 }
 
 class PairLine extends StatelessWidget {
-  const PairLine({super.key, required this.pair});
+  const PairLine({super.key, required this.competition, required this.pair});
   
+  final Competition competition;
   final Pair pair;
 
   @override
   Widget build(BuildContext context) {
     return MaterialButton(
+      padding: EdgeInsets.all(0),
       onPressed: () => Navigator.of(context).push(
         CupertinoPageRoute(
           title: "$pair#{pair.startNumber}",
-          builder: (context) => PairEditPage(pair: pair),
+          builder: (context) => PairEditPage(competition: competition, pair: pair),
         ),
       ),
       child: ListenableBuilder(
         listenable: pair,
-        builder: (context, child) => Row(
-          children: [
-            Text("${pair.startNumber}"),
-            CellWithText(width: 9, text: pair.classKind.toString()),
-            CellWithText(width: 14, text: pair.handlerName),
-            CellWithText(width: 8, text: pair.dogBreed),
-            CellWithText(width: 8, text: pair.dogName),
-          ],
+        builder: (context, child) => IntrinsicHeight(
+          child: Row(
+            mainAxisAlignment: .center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CellWithText(width: 5, text: pair.startNumber.toString(), softWrap: false, overflow: true),
+              CellWithText(width: 7, text: pair.classKind.toUserString(), softWrap: false, overflow: true),
+              CellWithText(width: 14, text: pair.handlerName),
+              CellWithText(width: 14, text: pair.dogBreed),
+              CellWithText(width: 14, text: pair.dogName),
+            ],
+          ),
         ),
-      ),
+      )
     );
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/mark_list.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 
 class MarkLineEditPage extends StatelessWidget {
-  const MarkLineEditPage(this.marksList, this.linesBlock, this.markLine, {super.key});
+  const MarkLineEditPage(this.competition, this.marksList, this.linesBlock, this.markLine, {super.key});
 
+  final Competition competition;
   final MarksList marksList;
   final LinesBlock linesBlock;
   final MarkLine markLine;
@@ -30,30 +32,41 @@ class MarkLineEditPage extends StatelessWidget {
             EditableBox(
               'Наименование оценки/штрафа', 
               markLine.name, 
-              (value) => markLine.setName(value), 
+              (value) {
+                markLine.setName(value);
+                competition.saved.value = false;
+              }, 
               false
             ),
             EditableBox(
               'Максимальное значение', 
               markLine.maxValue.toString(), 
-              (value) => { 
-                markLine.setMaxValue(double.parse(value)), 
-                marksList.updateSum() }, 
+              (value) { 
+                markLine.setMaxValue(double.parse(value));
+                marksList.updateSum();
+                competition.saved.value = false;
+              }, 
               true
             ),
             ToggleBox(
               'Штраф', 
               markLine.isPenalty, 
-              (value) => { 
-                markLine.setIsPenalty(value ?? false), 
-                marksList.updateSum() 
+              (value) { 
+                markLine.setIsPenalty(value ?? false); 
+                marksList.updateSum(); 
+                competition.saved.value = false;
               }
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => { linesBlock.removeLine(markLine), marksList.updateSum(), Navigator.of(context).pop() },
+        onPressed: () { 
+          linesBlock.removeLine(markLine); 
+          marksList.updateSum(); 
+          competition.saved.value = false;
+          Navigator.of(context).pop(); 
+        },
         tooltip: 'Remove',
         child: const Icon(Icons.remove_circle_outline),
       ),

@@ -57,7 +57,7 @@ class MarksListPage extends StatelessWidget {
                     mainAxisAlignment: .start,
                     children: [
                       for (var block in marksList.blocks)
-                        LinesBlockWidget(marksList, block),
+                        LinesBlockWidget(competition, marksList, block),
                     ],
                   ),
                 ),
@@ -67,7 +67,10 @@ class MarksListPage extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: marksList.addBlock,
+        onPressed: () {
+          marksList.addBlock;
+          competition.saved.value = false;
+        },
         tooltip: 'Добавить группу',
         child: const Icon(Icons.add),
       ),
@@ -76,8 +79,9 @@ class MarksListPage extends StatelessWidget {
 }
 
 class LinesBlockWidget extends StatelessWidget {
-  const LinesBlockWidget(this.marksList, this.linesBlock, {super.key});
+  const LinesBlockWidget(this.competition, this.marksList, this.linesBlock, {super.key});
   
+  final Competition competition;
   final MarksList marksList;
   final LinesBlock linesBlock;
 
@@ -102,17 +106,24 @@ class LinesBlockWidget extends StatelessWidget {
                   ),
                   SquareButton(
                     Icons.add, 
-                    () => { linesBlock.addLine(), marksList.updateSum() }
+                    () { 
+                      linesBlock.addLine();
+                      marksList.updateSum();
+                      competition.saved.value = false;
+                    }
                   ),
                   SquareButton(
                     Icons.remove_circle_outline, 
-                    () => marksList.removeBlock(linesBlock)
+                    () {
+                      marksList.removeBlock(linesBlock);
+                      competition.saved.value = false;
+                    }
                   ),
                 ],
               ),
             ),
             for (var markLine in linesBlock.lines)
-              MarkLineWidget(marksList, linesBlock, markLine),
+              MarkLineWidget(competition, marksList, linesBlock, markLine),
           ],
         );
       }
@@ -122,8 +133,9 @@ class LinesBlockWidget extends StatelessWidget {
 
 
 class MarkLineWidget extends StatelessWidget {
-  const MarkLineWidget(this.marksList, this.linesBlock, this.markLine, {super.key});
+  const MarkLineWidget(this.competition, this.marksList, this.linesBlock, this.markLine, {super.key});
   
+  final Competition competition;
   final MarksList marksList;
   final LinesBlock linesBlock;
   final MarkLine markLine;
@@ -134,7 +146,7 @@ class MarkLineWidget extends StatelessWidget {
       onPressed: () => Navigator.of(context).push(
         CupertinoPageRoute(
           title: "$markLine#{pair.startNumber}",
-          builder: (context) => MarkLineEditPage(marksList, linesBlock, markLine),
+          builder: (context) => MarkLineEditPage(competition, marksList, linesBlock, markLine),
         ),
       ),
       child: ListenableBuilder(

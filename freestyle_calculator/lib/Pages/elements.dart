@@ -59,12 +59,13 @@ class ToggleBox extends StatelessWidget {
 }
 
 class CellWithText extends StatelessWidget {
-  const CellWithText({super.key, required this.width, required this.text, this.softWrap = true, this.overflow = false});
+  const CellWithText({super.key, required this.width, required this.text, this.softWrap = true, this.overflow = false, this.ambiguous = false});
   
   final int width;
   final String text;
   final bool softWrap;
   final bool overflow;
+  final bool ambiguous;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +81,7 @@ class CellWithText extends StatelessWidget {
           text,
           softWrap: softWrap,
           overflow: overflow ? TextOverflow.visible : TextOverflow.fade,
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: ambiguous ? Theme.of(context).textTheme.displayMedium : Theme.of(context).textTheme.bodyMedium,
           textAlign: softWrap ? .left : .center,
         ),
       )
@@ -98,7 +99,8 @@ class LineButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.all(10),
+      constraints: BoxConstraints.expand(height: 50),
+      margin: EdgeInsets.all(1),
       child: MaterialButton(
         padding: EdgeInsets.all(20),
         onPressed: onPressed,

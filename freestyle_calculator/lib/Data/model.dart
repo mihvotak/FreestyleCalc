@@ -17,6 +17,20 @@ class Model extends ChangeNotifier {
   Competition? competition;
   Saves saves = Saves();
   String? error;
+  bool expandNew = false;
+  bool expandRecent = false;
+
+  void changeExpandNew()
+  {
+    expandNew = !expandNew;
+    notifyListeners();
+  }
+
+  void changeExpandRecent()
+  {
+    expandRecent = !expandRecent;
+    notifyListeners();
+  }
 
   void setError(String? text) {
     error = text;
@@ -28,6 +42,20 @@ class Model extends ChangeNotifier {
     {
       final String json = prefs.getString(id) ?? "";
       competition = Competition.fromJson(jsonDecode(json));
+      if (competition != null)
+      {
+        for (var pair in competition!.pairs) {
+          for (var judgeMarks in pair.judgesMarks) {
+            for (var (b, block) in judgeMarks.blocks.indexed) {
+              block.updateSum(competition!.marksList.blocks[b]);
+            }
+            judgeMarks.updateSum();
+          }
+          pair.updateSum();
+        }
+        competition!.updatePlaces();
+        competition!.saved.value = true;
+      }
       notifyListeners();
     }
     catch(e){
@@ -46,7 +74,7 @@ class Model extends ChangeNotifier {
       newCompetition.judges.add(judge);
     }
     for (int i = 0; i < 10; i++) {
-      var pair = Pair(newCompetition, i + 1);
+      var pair = Pair(i + 1);
       pair.classKind = i % 2 == 0 ? ClassKind.freProgress : ClassKind.htmVeterans; 
       pair.setHaldlerName("Хендлер номер $i");
       pair.setDogBreed("порода $i");
@@ -90,6 +118,7 @@ class Model extends ChangeNotifier {
   void saveCurrent() async {
     try{
       if (competition != null) {
+        bool walEmpty = saves.notes.isEmpty;
         CompetitionNote? note = saves.notes.firstWhereOrNull((n) => n.id == competition!.id);
         if (note == null) {
           note = CompetitionNote(competition!.id, competition!.name);
@@ -103,6 +132,7 @@ class Model extends ChangeNotifier {
         await prefs.setString(competition!.id, jsonEncode(competition!.toJson()));
         competition!.notifyChanged();
         competition!.saved.value = true;
+        if (walEmpty) notifyListeners();
       }
     }
     catch(e) {
@@ -114,7 +144,8 @@ class Model extends ChangeNotifier {
     try{
       await prefs.clear();
       if (competition != null) competition!.saved.value = false;
-      saves.setNotes([]);
+      saves.notes = [];
+      notifyListeners();
     }
     catch(e) {
       setError(e.toString());
@@ -122,20 +153,14 @@ class Model extends ChangeNotifier {
   }
 }
 
-class Saves extends ChangeNotifier {
+class Saves{
   Saves();
   Saves.fromJson(Map<String, dynamic> json)
     : notes = (json['notes'] as List<Object?>).cast<Map<String,Object?>>().map<CompetitionNote>(CompetitionNote.fromJson).toList();
   Map<String, dynamic> toJson() => {'notes': notes.map((note) => note.toJson()).toList()};
 
   List<CompetitionNote> notes = [];
-
-  void setNotes(List<CompetitionNote> notes) {
-    this.notes = notes;
-    notifyListeners();
-  }
-
-}
+ }
 
 class CompetitionNote {
   CompetitionNote(this.id, this.name);

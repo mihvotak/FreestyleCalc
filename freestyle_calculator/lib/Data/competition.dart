@@ -3,6 +3,8 @@ import 'package:freestyle_calculator/Data/judge.dart';
 import 'package:freestyle_calculator/Data/mark_list.dart';
 import 'package:freestyle_calculator/Data/pair_data.dart';
 
+enum SortMode { startNumber, classKind, handlerName, score, place }
+
 class Competition extends ChangeNotifier{
   Competition(this.id, this.name);
   Competition.fromJson(Map<String, dynamic> json)
@@ -19,6 +21,13 @@ class Competition extends ChangeNotifier{
   List<Judge> judges = [];
   MarksList marksList = MarksList(blocks: []);
   final ValueNotifier<bool> saved = ValueNotifier(false);
+  SortMode sortMode = SortMode.startNumber;
+
+  void setSortMode(SortMode sortMode)
+  {
+    this.sortMode = sortMode;
+    notifyChanged();
+  }
 
   void updatePlaces()
   {
@@ -31,6 +40,8 @@ class Competition extends ChangeNotifier{
       entry.value.sort((a, b) => b.meanSum.compareTo(a.meanSum));
       for (var (index, pair) in entry.value.indexed) {
         pair.place = pair.meanSum > 0 ? index + 1 : null;
+        pair.ambiguous = pair.meanSum > 0 && ((index > 0 && entry.value[index - 1].meanSum == entry.value[index].meanSum) 
+        || (index < entry.value.length - 1 && entry.value[index + 1].meanSum == entry.value[index].meanSum));
       }
     }
     notifyChanged();
@@ -38,5 +49,13 @@ class Competition extends ChangeNotifier{
 
   void notifyChanged() {
     notifyListeners();
+  }
+
+  void removePair(Pair pair)
+  {
+    pairs.remove(pair);
+    for (int i = 0; i < pairs.length; i++) {
+      pairs[i].startNumber = i + 1;
+    }
   }
 }

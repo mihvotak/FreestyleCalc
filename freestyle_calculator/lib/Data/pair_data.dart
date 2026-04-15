@@ -60,7 +60,7 @@ enum ClassKind {
 }
 
 class Pair extends ChangeNotifier {
-  Pair(this.competition, this.startNumber);
+  Pair(this.startNumber);
   Pair.fromJson(Map<String, dynamic> json)
     : startNumber = json['startNumber'] as int,
       classKind = ClassKind.parse(json['classKind'] as String),
@@ -70,8 +70,6 @@ class Pair extends ChangeNotifier {
       judgesMarks = (json['judgesMarks'] as List<Object?>).cast<Map<String,Object?>>().map<JudgeMarks>(JudgeMarks.fromJson).toList();
   Map<String, dynamic> toJson() => {'startNumber' : startNumber, 'classKind': classKind.toString(), 'handlerName': handlerName, 'dogBreed': dogBreed, 'dogName': dogName, 'judgesMarks': judgesMarks.map((judgeMark) => judgeMark.toJson()).toList()};
   
-  late Competition competition;
-
   int startNumber = 0;
   ClassKind classKind = ClassKind.outOfScoring;
   String handlerName = "";
@@ -81,6 +79,7 @@ class Pair extends ChangeNotifier {
   List<JudgeMarks> judgesMarks = [];
   double meanSum = 0;
   int? place; 
+  bool ambiguous = false;
 
   void prepareMarks(Competition competition) {
     while (judgesMarks.length > competition.judges.length) { judgesMarks.removeLast(); }
@@ -105,6 +104,18 @@ class Pair extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setClassKind(ClassKind value)
+  {
+    classKind = value;
+    notifyListeners();
+  }
+
+  void setStartNumber(String value)
+  {
+    startNumber = int.tryParse(value) ?? startNumber;
+    notifyListeners();
+  }
+
   void setHaldlerName(String value)
   {
     handlerName = value;
@@ -121,13 +132,5 @@ class Pair extends ChangeNotifier {
   {
     dogName = value;
     notifyListeners();
-  }
-
-  void remove()
-  {
-    competition.pairs.remove(this);
-    for (int i = 0; i < competition.pairs.length; i++) {
-      competition.pairs[i].startNumber = i + 1;
-    }
   }
 }

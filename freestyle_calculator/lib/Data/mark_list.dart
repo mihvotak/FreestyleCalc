@@ -114,7 +114,7 @@ class MarksBlock extends ChangeNotifier {
 class Mark {
   Mark();
   Mark.fromJson(String? json)
-    : markValue = json == null ? null : double.parse(json);
+    : markValue = json == null || json == 'null' ? null : double.parse(json);
   String toJson() => markValue?.toString() ?? "null";
 
   double? markValue;

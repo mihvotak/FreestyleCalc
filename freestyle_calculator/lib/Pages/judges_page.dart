@@ -19,11 +19,13 @@ class _JudgesPageState extends State<JudgesPage> {
   void _addJudge() {
     setState(() {
       widget.competition.judges.add(Judge());
+      widget.competition.saved.value = false;
     });
   }
   void _removeJudge(Judge judge) {
     setState(() {
       widget.competition.judges.remove(judge);
+      widget.competition.saved.value = false;
     });
   }
 

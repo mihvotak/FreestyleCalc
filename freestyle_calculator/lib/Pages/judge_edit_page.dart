@@ -21,7 +21,13 @@ class JudgeEditPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: .center,
           children: [
-            EditableBox('ФИО судьи', judge.name, (value) => judge.setName(value), false),
+            EditableBox('ФИО судьи', judge.name, 
+              (value) {
+                judge.setName(value);
+                competition.saved.value = false;
+              }, 
+              false
+            ),
           ],
         ),
       ),

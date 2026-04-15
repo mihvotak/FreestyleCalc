@@ -15,10 +15,10 @@ class PairResultPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Row(
-          spacing: 10,
+          spacing: 5,
           children: [
             Expanded(
-              child: Text("${pair.startNumber}: ${pair.handlerName}"),
+              child: Text("${pair.startNumber}|${pair.classKind.toUserString()}|${pair.handlerName}"),
             ),
             ListenableBuilder(
               listenable: pair,
@@ -160,7 +160,8 @@ class PairMapksLine extends StatelessWidget {
                   pair.judgesMarks[i].blocks[blockIndex].updateSum(competition.marksList.blocks[blockIndex]),
                   pair.judgesMarks[i].updateSum(),
                   pair.updateSum(),
-                  competition.updatePlaces()
+                  competition.updatePlaces(),
+                  competition.saved.value = false
                 },
               ),
             ),
