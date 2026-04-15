@@ -126,7 +126,7 @@ class CompetitionWidget extends StatelessWidget {
                     value ? Expanded(
                       child: TextField(
                         controller: TextEditingController(text: competition.name),
-                        onChanged: (value) => competition.name = value,
+                        onChanged: (value) { competition.name = value; competition.saved.value = false;},
                       ),
                     ) :
                     Expanded(

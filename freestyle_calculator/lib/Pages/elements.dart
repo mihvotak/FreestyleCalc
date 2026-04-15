@@ -102,7 +102,7 @@ class LineButton extends StatelessWidget {
       constraints: BoxConstraints.expand(height: 50),
       margin: EdgeInsets.all(1),
       child: MaterialButton(
-        padding: EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(horizontal: 20),
         onPressed: onPressed,
         color: Theme.of(context).colorScheme.inversePrimary,
         child: Text(text),

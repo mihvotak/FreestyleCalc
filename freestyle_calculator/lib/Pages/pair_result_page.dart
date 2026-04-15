@@ -60,7 +60,7 @@ class PairResultPage extends StatelessWidget {
                             builder: (context, child) {
                               return Text(
                                 textAlign: .center,
-                                '${pair.judgesMarks[j].blocks[b].sum}',
+                                pair.judgesMarks[j].blocks[b].sum.toStringAsFixed(1),
                                 style: Theme.of(context).textTheme.bodySmall,
                               );
                             },

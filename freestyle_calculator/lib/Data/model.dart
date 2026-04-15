@@ -102,6 +102,7 @@ class Model extends ChangeNotifier {
 
   void loadSaves() async {
     try {
+      WidgetsFlutterBinding.ensureInitialized();
       prefs = await SharedPreferences.getInstance();
       String? json = prefs.getString(savedIdsKey);
       if (json != null && json != "")
@@ -111,14 +112,13 @@ class Model extends ChangeNotifier {
       }
      }
     catch(e){
-      setError(e.toString());
+      setError("loadSaves exception: $e");
     }
  }
 
   void saveCurrent() async {
     try{
       if (competition != null) {
-        bool walEmpty = saves.notes.isEmpty;
         CompetitionNote? note = saves.notes.firstWhereOrNull((n) => n.id == competition!.id);
         if (note == null) {
           note = CompetitionNote(competition!.id, competition!.name);
@@ -132,7 +132,7 @@ class Model extends ChangeNotifier {
         await prefs.setString(competition!.id, jsonEncode(competition!.toJson()));
         competition!.notifyChanged();
         competition!.saved.value = true;
-        if (walEmpty) notifyListeners();
+        notifyListeners();
       }
     }
     catch(e) {
