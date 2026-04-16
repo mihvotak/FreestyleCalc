@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
+import 'package:freestyle_calculator/Data/google_api.dart';
 import 'package:freestyle_calculator/Data/model.dart';
 import 'package:freestyle_calculator/Pages/dialogs.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
@@ -87,7 +88,15 @@ class SatrtPage extends StatelessWidget {
                           );
                         }
                         else { model.createFromTemplate(); }
-                      })
+                      }),
+                    LineButton( 
+                      "Из гуглотаблицы", 
+                      () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => SignInDemo(),
+                        ),
+                      )
+                    )
                   ],
                 ),
               ),

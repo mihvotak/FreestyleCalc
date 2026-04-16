@@ -1,4 +1,4 @@
-package com.example.freestyle_calculator
+package com.mihvotak.freestyle_calculator
 
 import io.flutter.embedding.android.FlutterActivity
 
