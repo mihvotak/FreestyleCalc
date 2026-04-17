@@ -15,11 +15,11 @@ final List<String> scopes = [drive.DriveApi.driveScope];
 
 String? clientId = 
   kIsWeb ? '586269986709-6tl8or1tgii6ss9ilp9dpfhbfqb9nctu.apps.googleusercontent.com' : 
-  Platform.isAndroid ? '586269986709-e9m729f37bqo70is1cd7gtfdg8o68acv.apps.googleusercontent.com' : '';
+  Platform.isAndroid ? '586269986709-e9m729f37bqo70is1cd7gtfdg8o68acv.apps.googleusercontent.com' : null;
 
-/// To run this example, replace this value with your server client ID, and/or
-/// update the relevant configuration files, as described in the README.
-String? serverClientId = clientId;
+String? serverClientId = clientId = 
+  kIsWeb ? null:
+  Platform.isAndroid ? '586269986709-6tl8or1tgii6ss9ilp9dpfhbfqb9nctu.apps.googleusercontent.com' : null;
 
 
 
@@ -327,7 +327,7 @@ class _SignInDemoState extends State<SignInDemo> {
     // or all of the, but for simplicity this just handles cancel, and reports
     // the rest as generic errors.
     return switch (e.code) {
-      GoogleSignInExceptionCode.canceled => 'Sign in canceled',
+      GoogleSignInExceptionCode.canceled => 'Sign in canceled,  ${e.code}: ${e.description}',
       _ => 'GoogleSignInException ${e.code}: ${e.description}',
     };
   }
