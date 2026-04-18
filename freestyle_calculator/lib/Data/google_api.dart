@@ -2,16 +2,20 @@ import 'dart:async';
 import 'dart:convert' show json;
 import 'dart:io';
 
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:freestyle_calculator/Data/competition.dart';
+import 'package:freestyle_calculator/Data/model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:freestyle_calculator/google_api/web_wrapper.dart' as web;
 
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:googleapis/sheets/v4.dart' as sheets;
 
 /// The scopes used by this example.
-final List<String> scopes = [drive.DriveApi.driveScope];
+final List<String> scopes = [drive.DriveApi.driveReadonlyScope, sheets.SheetsApi.spreadsheetsScope];
 
 String? clientId = 
   kIsWeb ? '586269986709-6tl8or1tgii6ss9ilp9dpfhbfqb9nctu.apps.googleusercontent.com' : 
@@ -24,8 +28,9 @@ String? serverClientId = clientId =
 
 
 class SignInDemo extends StatefulWidget {
-  ///
-  const SignInDemo({super.key});
+  const SignInDemo(this.model, {super.key});
+
+  final Model model;
 
   @override
   State createState() => _SignInDemoState();
@@ -36,7 +41,8 @@ class _SignInDemoState extends State<SignInDemo> {
   bool _isAuthorized = false; // has granted permissions?
   String _debugText = '';
   String _errorMessage = '';
-  String _serverAuthCode = '';
+  ///String _serverAuthCode = '';
+  GoogleSignInClientAuthorization? _authorization;
 
   @override
   void initState() {
@@ -74,20 +80,20 @@ class _SignInDemoState extends State<SignInDemo> {
 
     // Check for existing authorization.
     // #docregion CheckAuthorization
-    final GoogleSignInClientAuthorization? authorization = await user
+    _authorization = await user
         ?.authorizationClient
         .authorizationForScopes(scopes);
     // #enddocregion CheckAuthorization
 
     setState(() {
       _currentUser = user;
-      _isAuthorized = authorization != null;
+      _isAuthorized = _authorization != null;
       _errorMessage = '';
     });
 
     // If the user has already granted access to the required scopes, call the
     // REST API.
-    if (user != null && authorization != null) {
+    if (user != null && _authorization != null) {
       unawaited(_handleGetSheets(user));
     }
   }
@@ -112,15 +118,22 @@ class _SignInDemoState extends State<SignInDemo> {
     if (headers == null) {
       setState(() {
         _debugText = '';
-        _errorMessage = 'Failed to construct authorization headers.';
+        _isAuthorized = false;
+        _errorMessage = 'Разрешения не даны или токен протух';
       });
       return;
     }
+    final uri = Uri.https(
+      'www.googleapis.com','drive/v3/files', 
+      {
+        'corpus': 'user', 
+        'includeItemsFromAllDrives': 'true',
+        'q' : 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false',
+        'supportsAllDrives': 'true'
+      }
+    );
     final http.Response response = await http.get(
-      Uri.parse(
-        'https://www.googleapis.com/drive/v3/files'
-        '?corpus=user&includeItemsFromAllDrives=true&q=mimeType%20%3D%20%27application%2Fvnd.google-apps.spreadsheet%27&supportsAllDrives=true',
-      ),
+      uri,
       headers: headers,
     );
     if (response.statusCode != 200) {
@@ -128,15 +141,15 @@ class _SignInDemoState extends State<SignInDemo> {
         setState(() {
           _isAuthorized = false;
           _errorMessage =
-              'Drive API gave a ${response.statusCode} response. '
-              'Please re-authorize access.';
+              'Сервер вернул ошибку ${response.statusCode} response. '
+              'Требуется повторная авторизация.';
         });
       } else {
         //print('People API ${response.statusCode} response: ${response.body}');
         setState(() {
           _debugText =
-              'People API gave a ${response.statusCode} '
-              'response: ${response.body}.';
+              'Сервер вернул ошибку ${response.statusCode} '
+              ': ${response.body}.';
         });
       }
       return;
@@ -145,10 +158,67 @@ class _SignInDemoState extends State<SignInDemo> {
     final String? fileName = _pickFirstFile(data);
     setState(() {
       if (fileName != null) {
-        _debugText = 'Fist sheet: $fileName';
+        _debugText = 'Последняя таблица: $fileName';
       } else {
         _debugText = 'No files to display.';
       }
+    });
+  }
+
+  Future<void> _handleSaveToSheet(GoogleSignInAccount user, Competition competition) async {
+    setState(() {
+      _debugText = 'Отправляем...';
+    });
+    _authorization = await user
+        .authorizationClient
+        .authorizeScopes(scopes);
+    final authenticatedClient = _authorization!.authClient(scopes: scopes);
+    final sheetsApi = sheets.SheetsApi(authenticatedClient);
+    
+    var newSpreadsheet = sheets.Spreadsheet(
+      properties: sheets.SpreadsheetProperties(title: competition.name),
+      sheets: [
+        sheets.Sheet(properties: sheets.SheetProperties(title: "Результаты")),
+        sheets.Sheet(properties: sheets.SheetProperties(title: "Участники")),
+        sheets.Sheet(properties: sheets.SheetProperties(title: "Судьи")),
+      ]
+    );
+    sheets.Spreadsheet response = await sheetsApi.spreadsheets.create(newSpreadsheet);
+    final spreadsheetId = response.spreadsheetId;
+    setState(() {
+      _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
+    });
+    
+    var pairsRange = sheets.ValueRange.fromJson({
+      "values": [
+        ["№", "Класс", "Проводник", "порода", "Кличка"],
+        for (var pair in competition.pairs)
+          [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName]
+      ]
+    });
+    var judgesRange = sheets.ValueRange.fromJson({
+      "values": [
+        ["№", "ФИО судьи"],
+        for (var (index, judge) in competition.judges.indexed)
+          [(index + 1).toString(), judge.name]
+      ]
+    });
+
+    await sheetsApi.spreadsheets.values.append(
+      pairsRange, 
+      spreadsheetId!, 
+      '${response.sheets![1].properties!.title}!A1', 
+      valueInputOption: 'USER_ENTERED'
+    );
+    await sheetsApi.spreadsheets.values.append(
+      judgesRange, 
+      spreadsheetId, 
+      '${response.sheets![2].properties!.title}!A1', 
+      valueInputOption: 'USER_ENTERED'
+    );
+  
+      setState(() {
+      _debugText = 'Данные успешно отправлены в новую таблицу $spreadsheetId';
     });
   }
 
@@ -178,30 +248,41 @@ class _SignInDemoState extends State<SignInDemo> {
   Future<void> _handleAuthorizeScopes(GoogleSignInAccount user) async {
     try {
       // #docregion RequestScopes
-      final GoogleSignInClientAuthorization authorization = await user
+      _authorization = await user
           .authorizationClient
           .authorizeScopes(scopes);
       // #enddocregion RequestScopes
 
-      // The returned tokens are ignored since _handleGetContact uses the
+      // The returned tokens are ignored since _handleGetSheets uses the
       // authorizationHeaders method to re-read the token cached by
       // authorizeScopes. The code above is used as a README excerpt, so shows
       // the simpler pattern of getting the authorization for immediate use.
       // That results in an unused variable, which this statement suppresses
       // (without adding an ignore: directive to the README excerpt).
       // ignore: unnecessary_statements
-      authorization;
+      //_authorization;
 
-      setState(() {
-        _isAuthorized = true;
-        _errorMessage = '';
-      });
-      unawaited(_handleGetSheets(_currentUser!));
+      final Map<String, String>? headers = await user.authorizationClient
+        .authorizationHeaders(scopes);
+      if (headers == null) {
+        setState(() {
+          _debugText = '';
+          _errorMessage = 'Даны не все разрешения!';
+        });
+      }
+      else {
+        setState(() {
+          _isAuthorized = true;
+          _errorMessage = '';
+        });
+        unawaited(_handleGetSheets(_currentUser!));
+      }
     } on GoogleSignInException catch (e) {
       _errorMessage = _errorMessageFromSignInException(e);
     }
   }
 
+/*
   // Requests a server auth code for the authorized scopes.
   //
   // If authorizationRequiresUserInteraction() is true, this must be called from
@@ -222,6 +303,7 @@ class _SignInDemoState extends State<SignInDemo> {
       _errorMessage = _errorMessageFromSignInException(e);
     }
   }
+*/  
 
   Future<void> _handleSignOut() async {
     // Disconnect instead of just signing out, to reset the example state as
@@ -252,37 +334,42 @@ class _SignInDemoState extends State<SignInDemo> {
         title: Text(user.displayName ?? ''),
         subtitle: Text(user.email),
       ),
-      const Text('Signed in successfully.'),
+      const Text('Авторизация успешна.'),
       if (_isAuthorized) ...<Widget>[
         // The user has Authorized all required scopes.
-        if (_debugText.isNotEmpty) Text(_debugText),
+        if (_debugText.isNotEmpty) Text(_debugText, textAlign: .center),
         ElevatedButton(
-          child: const Text('REFRESH'),
+          child: const Text('Обновить инфо о последней таблице'),
           onPressed: () => _handleGetSheets(user),
         ),
-        if (_serverAuthCode.isEmpty)
+        if (widget.model.competition != null)
+        ElevatedButton(
+          child: const Text('Отправить в гуглотаблицу'),
+          onPressed: () => _handleSaveToSheet(user, widget.model.competition!),
+        ),
+        /*if (_serverAuthCode.isEmpty)
           ElevatedButton(
             child: const Text('REQUEST SERVER CODE'),
             onPressed: () => _handleGetAuthCode(user),
           )
         else
-          Text('Server auth code:\n$_serverAuthCode'),
+          Text('Server auth code:\n$_serverAuthCode'),*/
       ] else ...<Widget>[
         // The user has NOT Authorized all required scopes.
-        const Text('Authorization needed to read your contacts.'),
+        const Text('Приложению нужны разрешения на доступ к таблицам через Google Диск.', textAlign: .center,),
         ElevatedButton(
           onPressed: () => _handleAuthorizeScopes(user),
-          child: const Text('REQUEST PERMISSIONS'),
+          child: const Text('Дать разрешения'),
         ),
       ],
-      ElevatedButton(onPressed: _handleSignOut, child: const Text('SIGN OUT')),
+      ElevatedButton(onPressed: _handleSignOut, child: const Text('Выйти из Google аккаунта')),
     ];
   }
 
   /// Returns the list of widgets to include if the user is not authenticated.
   List<Widget> _buildUnauthenticatedWidgets() {
     return <Widget>[
-      const Text('You are not currently signed in.'),
+      const Text('Авторизация не пройдена.'),
       // #docregion ExplicitSignIn
       if (GoogleSignIn.instance.supportsAuthenticate())
         ElevatedButton(
@@ -295,7 +382,7 @@ class _SignInDemoState extends State<SignInDemo> {
               // #docregion ExplicitSignIn
             }
           },
-          child: const Text('SIGN IN'),
+          child: const Text('Войти'),
         )
       else ...<Widget>[
         if (kIsWeb)
@@ -314,7 +401,7 @@ class _SignInDemoState extends State<SignInDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Google Sign In')),
+      appBar: AppBar(title: const Text('Войти через Google')),
       body: ConstrainedBox(
         constraints: const BoxConstraints.expand(),
         child: _buildBody(),

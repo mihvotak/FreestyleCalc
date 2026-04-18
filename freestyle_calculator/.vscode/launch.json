@@ -10,6 +10,7 @@
             "type": "dart",
             "args": [
               "--no-web-resources-cdn",
+              "--web-port", "1234",
             ]
         },
         {

@@ -93,7 +93,7 @@ class SatrtPage extends StatelessWidget {
                       "Из гуглотаблицы", 
                       () => Navigator.of(context).push(
                         CupertinoPageRoute(
-                          builder: (context) => SignInDemo(),
+                          builder: (context) => SignInDemo(model),
                         ),
                       )
                     )
