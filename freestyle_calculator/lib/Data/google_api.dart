@@ -37,12 +37,19 @@ class SignInDemo extends StatefulWidget {
 }
 
 class _SignInDemoState extends State<SignInDemo> {
-  GoogleSignInAccount? _currentUser;
-  bool _isAuthorized = false; // has granted permissions?
+
+  Model get model => widget.model;
   String _debugText = '';
   String _errorMessage = '';
-  ///String _serverAuthCode = '';
-  GoogleSignInClientAuthorization? _authorization;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
+  String? _lastSheetName;
+  String? _lastSheetId;
+  
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -50,20 +57,33 @@ class _SignInDemoState extends State<SignInDemo> {
 
     // #docregion Setup
     final GoogleSignIn signIn = GoogleSignIn.instance;
-    unawaited(
-      signIn.initialize(clientId: clientId, serverClientId: serverClientId).then((
-        _,
-      ) {
-        signIn.authenticationEvents
-            .listen(_handleAuthenticationEvent)
-            .onError(_handleAuthenticationError);
+    if (!model.initialized) {
+      unawaited(
+        signIn.initialize(clientId: clientId, serverClientId: serverClientId).then((
+          _,
+        ) {
+          model.initialized = true;
+          _authSubscription = signIn.authenticationEvents.listen(
+            _handleAuthenticationEvent,
+            onError: _handleAuthenticationError
+          );
 
-        /// This example always uses the stream-based approach to determining
-        /// which UI state to show, rather than using the future returned here,
-        /// if any, to conditionally skip directly to the signed-in state.
-        signIn.attemptLightweightAuthentication();
-      }),
-    );
+          /// This example always uses the stream-based approach to determining
+          /// which UI state to show, rather than using the future returned here,
+          /// if any, to conditionally skip directly to the signed-in state.
+          signIn.attemptLightweightAuthentication();
+        }),
+      );
+    }
+    else {
+      _authSubscription = signIn.authenticationEvents.listen(
+        _handleAuthenticationEvent,
+        onError: _handleAuthenticationError
+      );
+      setState(() {
+        
+      });
+    }
     // #enddocregion Setup
   }
 
@@ -80,99 +100,85 @@ class _SignInDemoState extends State<SignInDemo> {
 
     // Check for existing authorization.
     // #docregion CheckAuthorization
-    _authorization = await user
+    model.authorization = await user
         ?.authorizationClient
         .authorizationForScopes(scopes);
     // #enddocregion CheckAuthorization
 
     setState(() {
-      _currentUser = user;
-      _isAuthorized = _authorization != null;
+      model.currentUser = user;
+      model.isAuthorized = model.authorization != null;
       _errorMessage = '';
     });
 
     // If the user has already granted access to the required scopes, call the
     // REST API.
-    if (user != null && _authorization != null) {
+    if (user != null && model.authorization != null) {
       unawaited(_handleGetSheets(user));
     }
   }
 
   Future<void> _handleAuthenticationError(Object e) async {
     setState(() {
-      _currentUser = null;
-      _isAuthorized = false;
+      model.currentUser = null;
+      model.isAuthorized = false;
       _errorMessage = e is GoogleSignInException
           ? _errorMessageFromSignInException(e)
           : 'Unknown error: $e';
     });
   }
 
-  // Calls the People API REST endpoint for the signed-in user to retrieve information.
+  // Calls the Sheets API REST endpoint for the signed-in user to retrieve information.
   Future<void> _handleGetSheets(GoogleSignInAccount user) async {
     setState(() {
-      _debugText = 'Loading drive info...';
+      _debugText = 'Запрашиваем список таблиц...';
     });
     final Map<String, String>? headers = await user.authorizationClient
         .authorizationHeaders(scopes);
     if (headers == null) {
       setState(() {
         _debugText = '';
-        _isAuthorized = false;
+        model.isAuthorized = false;
         _errorMessage = 'Разрешения не даны или токен протух';
       });
       return;
     }
-    final uri = Uri.https(
-      'www.googleapis.com','drive/v3/files', 
-      {
-        'corpus': 'user', 
-        'includeItemsFromAllDrives': 'true',
-        'q' : 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false',
-        'supportsAllDrives': 'true'
-      }
-    );
-    final http.Response response = await http.get(
-      uri,
-      headers: headers,
-    );
-    if (response.statusCode != 200) {
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        setState(() {
-          _isAuthorized = false;
-          _errorMessage =
-              'Сервер вернул ошибку ${response.statusCode} response. '
-              'Требуется повторная авторизация.';
-        });
-      } else {
-        //print('People API ${response.statusCode} response: ${response.body}');
-        setState(() {
-          _debugText =
-              'Сервер вернул ошибку ${response.statusCode} '
-              ': ${response.body}.';
-        });
-      }
-      return;
+    try {
+      model.authorization = await user
+          .authorizationClient
+          .authorizeScopes(scopes);
+      final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+      final driveApi = drive.DriveApi(authenticatedClient);
+      final filelist = await driveApi.files.list(corpus: 'user', includeItemsFromAllDrives: true, supportsAllDrives: true,
+        q: 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false'
+      );
+      _lastSheetId = filelist.files?.firstOrNull?.id;
+      _lastSheetName = filelist.files?.firstOrNull?.name;
+      setState(() {
+        if (_lastSheetName != null && _lastSheetId != null) {
+          _debugText = 'Последняя таблица: $_lastSheetName';
+        } else {
+          _debugText = 'Таблиц не найдено.';
+        }
+      });
     }
-    final data = json.decode(response.body) as Map<String, dynamic>;
-    final String? fileName = _pickFirstFile(data);
-    setState(() {
-      if (fileName != null) {
-        _debugText = 'Последняя таблица: $fileName';
-      } else {
-        _debugText = 'No files to display.';
-      }
-    });
+    catch(e) {
+      setState(() {
+        _debugText = '';
+        model.isAuthorized = false;
+        _errorMessage = 'Ошибка: ${e.toString()}';
+      });
+    }
   }
 
   Future<void> _handleSaveToSheet(GoogleSignInAccount user, Competition competition) async {
     setState(() {
       _debugText = 'Отправляем...';
     });
-    _authorization = await user
+    model.authorization = await user
         .authorizationClient
         .authorizeScopes(scopes);
-    final authenticatedClient = _authorization!.authClient(scopes: scopes);
+    final authenticatedClient = model.authorization!.authClient(scopes: scopes);
     final sheetsApi = sheets.SheetsApi(authenticatedClient);
     
     var newSpreadsheet = sheets.Spreadsheet(
@@ -188,7 +194,117 @@ class _SignInDemoState extends State<SignInDemo> {
     setState(() {
       _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
     });
+    if (spreadsheetId != null) {
+      _exportToSheet(sheetsApi, response, competition, spreadsheetId);
+    }
+  }
+
+  static const String resultsSheetName = "Результаты";
+  static const String pairsSheetName = "Участники";
+  static const String judgesSheetName = "Судьи";
+
+  Future<void> _handleSaveToSheetWithId(GoogleSignInAccount user, Competition competition, String id) async {
+    setState(() {
+      _debugText = 'Отправляем...';
+    });
+    model.authorization = await user
+        .authorizationClient
+        .authorizeScopes(scopes);
+    final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+    final sheetsApi = sheets.SheetsApi(authenticatedClient);
     
+    sheets.Spreadsheet response = await sheetsApi.spreadsheets.get(id);
+    if (response.sheets == null) {
+      setState(() {
+        _debugText = "Ошибка. Таблица c id='$id' не найдена!";
+      });
+    }
+    else if (response.sheets!.length < 3) {
+      setState(() {
+        _debugText = "Ошибка. В таблице должно быть три листа или больше!";
+      });
+    }
+    else if (response.sheets![0].properties == null || response.sheets![0].properties!.title != resultsSheetName) {
+      setState(() {
+        _debugText = "Ошибка. В таблице первый лист должен называться '$resultsSheetName'";
+      });
+    }
+    else if (response.sheets![1].properties == null || response.sheets![1].properties!.title != pairsSheetName) {
+      setState(() {
+        _debugText = "Ошибка. В таблице второй лист должен называться '$pairsSheetName'";
+      });
+    }
+    else if (response.sheets![2].properties == null || response.sheets![2].properties!.title != judgesSheetName) {
+      setState(() {
+        _debugText = "Ошибка. В таблице третий лист должен называться '$judgesSheetName'";
+      });
+    }
+    else {
+      setState(() {
+        _debugText = "Таблица найдена, отправляем данные...";
+      });
+      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![0].properties!.title}!A1:z');
+      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![1].properties!.title}!A1:z');
+      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![2].properties!.title}!A1:z');
+      await _exportToSheet(sheetsApi, response, competition, id);
+    }
+  }
+
+
+  Future<void> _exportToSheet(sheets.SheetsApi sheetsApi, sheets.Spreadsheet spreadsheet, Competition competition, String spreadsheetId) async {
+    for (var pair in competition.pairs) {
+      pair.prepareMarks(competition);
+    }
+    var line0 = ["№", "Класс", "Проводник", "Порода", "Кличка", "Судья"];
+    for (var block in competition.marksList.blocks) {
+      for (var (l, _) in block.lines.indexed) {
+        line0.add(l == 0 ? block.name : "");
+      }
+      line0.add("");
+    }
+    line0.addAll(["Сумма", "Среднее", "Место"]);
+    var line1 = ["", "", "", "", "", ""];
+    for (var block in competition.marksList.blocks) {
+      for (var line in block.lines) {
+        line1.add(line.name);
+      }
+      line1.add("Σ");
+    }
+    line1.addAll(["", "", ""]);
+    var line2 = ["", "", "", "", "", ""];
+    for (var block in competition.marksList.blocks) {
+      for (var line in block.lines) {
+        line2.add(line.maxValue.toString());
+      }
+      line2.add("");
+    }
+    line2.addAll(["", "", ""]);
+    var lines = [
+        line0,
+        line1,
+        line2];
+    for (var pair in competition.pairs) {
+      for (var (j, judge) in competition.judges.indexed) {
+        var line = [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName];
+        line.add(judge.name);
+        for (var (b, block) in competition.marksList.blocks.indexed) {
+          for (var (l, _) in block.lines.indexed) {
+            line.add(pair.judgesMarks[j].blocks[b].marks[l].markValue?.toString() ?? "");
+          }
+          line.add(pair.judgesMarks[j].blocks[b].sum.toString());
+        }
+        line.add(pair.judgesMarks[j].sum.toString());
+        if (j == 0) { 
+          line.add(pair.meanSum.toStringAsFixed(2)); 
+          line.add(pair.place?.toString() ?? ""); 
+        }
+        else { line.add(""); line.add(""); }
+        lines.add(line);
+      }
+    }
+    var resultsRange = sheets.ValueRange.fromJson({
+      "values": lines
+    });
     var pairsRange = sheets.ValueRange.fromJson({
       "values": [
         ["№", "Класс", "Проводник", "порода", "Кличка"],
@@ -205,39 +321,102 @@ class _SignInDemoState extends State<SignInDemo> {
     });
 
     await sheetsApi.spreadsheets.values.append(
+      resultsRange, 
+      spreadsheetId!, 
+      '${spreadsheet.sheets![0].properties!.title}!A1', 
+      valueInputOption: 'USER_ENTERED'
+    );
+    final sheetId = spreadsheet.sheets![0].properties!.sheetId;
+    final List<sheets.Request> mergeRequests = [];
+    mergeRequests.add(sheets.Request(
+      mergeCells: sheets.MergeCellsRequest(
+        range: sheets.GridRange(
+          sheetId: sheetId,
+          startRowIndex: 0,
+          startColumnIndex: 0,
+          endRowIndex: 3,
+          endColumnIndex: 6,
+        ),
+        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
+      ),
+    ));
+    var columnIndex = 6;
+    for (var block in competition.marksList.blocks) {
+      mergeRequests.add(sheets.Request(
+        mergeCells: sheets.MergeCellsRequest(
+          range: sheets.GridRange(
+            sheetId: sheetId,
+            startRowIndex: 0,
+            startColumnIndex: columnIndex,
+            endRowIndex: 1,
+            endColumnIndex: columnIndex + block.lines.length + 1,
+          ),
+          mergeType: 'MERGE_ALL', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
+        ),
+      ));
+      columnIndex += block.lines.length + 1;
+    }
+    var rowIndex = 3;
+    for (var _ in competition.pairs) {
+      mergeRequests.add(sheets.Request(
+        mergeCells: sheets.MergeCellsRequest(
+          range: sheets.GridRange(
+            sheetId: sheetId,
+            startRowIndex: rowIndex,
+            startColumnIndex: 0,
+            endRowIndex: rowIndex + competition.judges.length,
+            endColumnIndex: 5,
+          ),
+          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
+        ),
+      ));
+      mergeRequests.add(sheets.Request(
+        mergeCells: sheets.MergeCellsRequest(
+          range: sheets.GridRange(
+            sheetId: sheetId,
+            startRowIndex: rowIndex,
+            startColumnIndex: columnIndex + 1,
+            endRowIndex: rowIndex + competition.judges.length,
+            endColumnIndex: columnIndex + 3,
+          ),
+          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
+        ),
+      ));
+      rowIndex += competition.judges.length;
+    }
+    mergeRequests.add(sheets.Request(
+      mergeCells: sheets.MergeCellsRequest(
+        range: sheets.GridRange(
+          sheetId: sheetId,
+          startRowIndex: 0,
+          startColumnIndex: columnIndex,
+          endRowIndex: 3,
+          endColumnIndex: columnIndex + 3,
+        ),
+        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
+      ),
+    ));
+    final batchUpdateRequest = sheets.BatchUpdateSpreadsheetRequest(
+      requests: mergeRequests,
+    );
+    await sheetsApi.spreadsheets.batchUpdate(batchUpdateRequest, spreadsheetId);
+
+    await sheetsApi.spreadsheets.values.append(
       pairsRange, 
       spreadsheetId!, 
-      '${response.sheets![1].properties!.title}!A1', 
+      '${spreadsheet.sheets![1].properties!.title}!A1', 
       valueInputOption: 'USER_ENTERED'
     );
     await sheetsApi.spreadsheets.values.append(
       judgesRange, 
       spreadsheetId, 
-      '${response.sheets![2].properties!.title}!A1', 
+      '${spreadsheet.sheets![2].properties!.title}!A1', 
       valueInputOption: 'USER_ENTERED'
     );
   
       setState(() {
-      _debugText = 'Данные успешно отправлены в новую таблицу $spreadsheetId';
+      _debugText = 'Данные успешно отправлены в новую таблицу ${competition.name}';
     });
-  }
-
-  String? _pickFirstFile(Map<String, dynamic> data) {
-    final files = data['files'] as List<dynamic>?;
-    final file =
-        files?.firstWhere(
-              (dynamic contact) =>
-                  (contact as Map<Object?, dynamic>)['name'] != null,
-              orElse: () => null,
-            )
-            as Map<String, dynamic>?;
-    if (file != null) {
-      final name = file['name'] as String;
-      if (name.isNotEmpty) {
-        return name;
-      }
-    }
-    return null;
   }
 
   // Prompts the user to authorize `scopes`.
@@ -247,20 +426,9 @@ class _SignInDemoState extends State<SignInDemo> {
   // regardless, so authorizationRequiresUserInteraction() is not checked.
   Future<void> _handleAuthorizeScopes(GoogleSignInAccount user) async {
     try {
-      // #docregion RequestScopes
-      _authorization = await user
+      model.authorization = await user
           .authorizationClient
           .authorizeScopes(scopes);
-      // #enddocregion RequestScopes
-
-      // The returned tokens are ignored since _handleGetSheets uses the
-      // authorizationHeaders method to re-read the token cached by
-      // authorizeScopes. The code above is used as a README excerpt, so shows
-      // the simpler pattern of getting the authorization for immediate use.
-      // That results in an unused variable, which this statement suppresses
-      // (without adding an ignore: directive to the README excerpt).
-      // ignore: unnecessary_statements
-      //_authorization;
 
       final Map<String, String>? headers = await user.authorizationClient
         .authorizationHeaders(scopes);
@@ -272,38 +440,15 @@ class _SignInDemoState extends State<SignInDemo> {
       }
       else {
         setState(() {
-          _isAuthorized = true;
+          model.isAuthorized = true;
           _errorMessage = '';
         });
-        unawaited(_handleGetSheets(_currentUser!));
+        unawaited(_handleGetSheets(model.currentUser!));
       }
     } on GoogleSignInException catch (e) {
       _errorMessage = _errorMessageFromSignInException(e);
     }
   }
-
-/*
-  // Requests a server auth code for the authorized scopes.
-  //
-  // If authorizationRequiresUserInteraction() is true, this must be called from
-  // a user interaction (button click). In this example app, a button is used
-  // regardless, so authorizationRequiresUserInteraction() is not checked.
-  Future<void> _handleGetAuthCode(GoogleSignInAccount user) async {
-    try {
-      // #docregion RequestServerAuth
-      final GoogleSignInServerAuthorization? serverAuth = await user
-          .authorizationClient
-          .authorizeServer(scopes);
-      // #enddocregion RequestServerAuth
-
-      setState(() {
-        _serverAuthCode = serverAuth == null ? '' : serverAuth.serverAuthCode;
-      });
-    } on GoogleSignInException catch (e) {
-      _errorMessage = _errorMessageFromSignInException(e);
-    }
-  }
-*/  
 
   Future<void> _handleSignOut() async {
     // Disconnect instead of just signing out, to reset the example state as
@@ -312,7 +457,7 @@ class _SignInDemoState extends State<SignInDemo> {
   }
 
   Widget _buildBody() {
-    final GoogleSignInAccount? user = _currentUser;
+    final GoogleSignInAccount? user = model.currentUser;
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: <Widget>[
@@ -335,7 +480,7 @@ class _SignInDemoState extends State<SignInDemo> {
         subtitle: Text(user.email),
       ),
       const Text('Авторизация успешна.'),
-      if (_isAuthorized) ...<Widget>[
+      if (model.isAuthorized) ...<Widget>[
         // The user has Authorized all required scopes.
         if (_debugText.isNotEmpty) Text(_debugText, textAlign: .center),
         ElevatedButton(
@@ -344,8 +489,13 @@ class _SignInDemoState extends State<SignInDemo> {
         ),
         if (widget.model.competition != null)
         ElevatedButton(
-          child: const Text('Отправить в гуглотаблицу'),
+          child: const Text('Сохранить в новую гуглотаблицу'),
           onPressed: () => _handleSaveToSheet(user, widget.model.competition!),
+        ),
+        if (widget.model.competition != null && _lastSheetName != null)
+        ElevatedButton(
+          child: Text('Сохранить в гуглотаблицу \'$_lastSheetName\''),
+          onPressed: () => _handleSaveToSheetWithId(user, widget.model.competition!, _lastSheetId!),
         ),
         /*if (_serverAuthCode.isEmpty)
           ElevatedButton(

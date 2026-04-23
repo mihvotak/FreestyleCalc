@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:collection/collection.dart';
@@ -19,6 +20,11 @@ class Model extends ChangeNotifier {
   String? error;
   bool expandNew = false;
   bool expandRecent = false;
+
+  GoogleSignInAccount? currentUser;
+  bool initialized = false;
+  bool isAuthorized = false; // has granted permissions?
+  GoogleSignInClientAuthorization? authorization;
 
   void changeExpandNew()
   {
