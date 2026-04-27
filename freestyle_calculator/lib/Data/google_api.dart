@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert' show json;
 import 'dart:io';
 
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
@@ -7,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/model.dart';
+import 'package:freestyle_calculator/Data/sheets_util.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
 import 'package:freestyle_calculator/google_api/web_wrapper.dart' as web;
 
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -44,6 +43,7 @@ class _SignInDemoState extends State<SignInDemo> {
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
   String? _lastSheetName;
   String? _lastSheetId;
+  SheetsUtil sheetsUtil = SheetsUtil();
   
   @override
   void dispose() {
@@ -175,27 +175,38 @@ class _SignInDemoState extends State<SignInDemo> {
     setState(() {
       _debugText = 'Отправляем...';
     });
-    model.authorization = await user
-        .authorizationClient
-        .authorizeScopes(scopes);
-    final authenticatedClient = model.authorization!.authClient(scopes: scopes);
-    final sheetsApi = sheets.SheetsApi(authenticatedClient);
-    
-    var newSpreadsheet = sheets.Spreadsheet(
-      properties: sheets.SpreadsheetProperties(title: competition.name),
-      sheets: [
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Результаты")),
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Участники")),
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Судьи")),
-      ]
-    );
-    sheets.Spreadsheet response = await sheetsApi.spreadsheets.create(newSpreadsheet);
-    final spreadsheetId = response.spreadsheetId;
-    setState(() {
-      _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
-    });
-    if (spreadsheetId != null) {
-      _exportToSheet(sheetsApi, response, competition, spreadsheetId);
+    try {
+      model.authorization = await user
+          .authorizationClient
+          .authorizeScopes(scopes);
+      final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+      final sheetsApi = sheets.SheetsApi(authenticatedClient);
+      
+      var newSpreadsheet = sheets.Spreadsheet(
+        properties: sheets.SpreadsheetProperties(title: competition.name),
+        sheets: [
+          sheets.Sheet(properties: sheets.SheetProperties(title: resultsSheetName)),
+          sheets.Sheet(properties: sheets.SheetProperties(title: pairsSheetName)),
+          sheets.Sheet(properties: sheets.SheetProperties(title: judgesSheetName)),
+        ]
+      );
+      sheets.Spreadsheet response = await sheetsApi.spreadsheets.create(newSpreadsheet);
+      final spreadsheetId = response.spreadsheetId;
+      setState(() {
+        _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
+      });
+      if (spreadsheetId != null) {
+        await sheetsUtil.exportToSheet(sheetsApi, response, competition, spreadsheetId);
+        setState(() {
+          _debugText = 'Данные успешно отправлены в новую таблицу ${competition.name}';
+        });
+      }
+    }
+    catch(e)
+    {
+        setState(() {
+          _debugText = 'Ошибка: ${e.toString()}';
+        });
     }
   }
 
@@ -246,178 +257,11 @@ class _SignInDemoState extends State<SignInDemo> {
       await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![0].properties!.title}!A1:z');
       await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![1].properties!.title}!A1:z');
       await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![2].properties!.title}!A1:z');
-      await _exportToSheet(sheetsApi, response, competition, id);
+      await sheetsUtil.exportToSheet(sheetsApi, response, competition, id);
     }
   }
 
 
-  Future<void> _exportToSheet(sheets.SheetsApi sheetsApi, sheets.Spreadsheet spreadsheet, Competition competition, String spreadsheetId) async {
-    for (var pair in competition.pairs) {
-      pair.prepareMarks(competition);
-    }
-    var line0 = ["№", "Класс", "Проводник", "Порода", "Кличка", "Судья"];
-    for (var block in competition.marksList.blocks) {
-      for (var (l, _) in block.lines.indexed) {
-        line0.add(l == 0 ? block.name : "");
-      }
-      line0.add("");
-    }
-    line0.addAll(["Сумма", "Среднее", "Место"]);
-    var line1 = ["", "", "", "", "", ""];
-    for (var block in competition.marksList.blocks) {
-      for (var line in block.lines) {
-        line1.add(line.name);
-      }
-      line1.add("Σ");
-    }
-    line1.addAll(["", "", ""]);
-    var line2 = ["", "", "", "", "", ""];
-    for (var block in competition.marksList.blocks) {
-      for (var line in block.lines) {
-        line2.add(line.maxValue.toString());
-      }
-      line2.add("");
-    }
-    line2.addAll(["", "", ""]);
-    var lines = [
-        line0,
-        line1,
-        line2];
-    for (var pair in competition.pairs) {
-      for (var (j, judge) in competition.judges.indexed) {
-        var line = [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName];
-        line.add(judge.name);
-        for (var (b, block) in competition.marksList.blocks.indexed) {
-          for (var (l, _) in block.lines.indexed) {
-            line.add(pair.judgesMarks[j].blocks[b].marks[l].markValue?.toString() ?? "");
-          }
-          line.add(pair.judgesMarks[j].blocks[b].sum.toString());
-        }
-        line.add(pair.judgesMarks[j].sum.toString());
-        if (j == 0) { 
-          line.add(pair.meanSum.toStringAsFixed(2)); 
-          line.add(pair.place?.toString() ?? ""); 
-        }
-        else { line.add(""); line.add(""); }
-        lines.add(line);
-      }
-    }
-    var resultsRange = sheets.ValueRange.fromJson({
-      "values": lines
-    });
-    var pairsRange = sheets.ValueRange.fromJson({
-      "values": [
-        ["№", "Класс", "Проводник", "порода", "Кличка"],
-        for (var pair in competition.pairs)
-          [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName]
-      ]
-    });
-    var judgesRange = sheets.ValueRange.fromJson({
-      "values": [
-        ["№", "ФИО судьи"],
-        for (var (index, judge) in competition.judges.indexed)
-          [(index + 1).toString(), judge.name]
-      ]
-    });
-
-    await sheetsApi.spreadsheets.values.append(
-      resultsRange, 
-      spreadsheetId!, 
-      '${spreadsheet.sheets![0].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-    final sheetId = spreadsheet.sheets![0].properties!.sheetId;
-    final List<sheets.Request> mergeRequests = [];
-    mergeRequests.add(sheets.Request(
-      mergeCells: sheets.MergeCellsRequest(
-        range: sheets.GridRange(
-          sheetId: sheetId,
-          startRowIndex: 0,
-          startColumnIndex: 0,
-          endRowIndex: 3,
-          endColumnIndex: 6,
-        ),
-        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-      ),
-    ));
-    var columnIndex = 6;
-    for (var block in competition.marksList.blocks) {
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: 0,
-            startColumnIndex: columnIndex,
-            endRowIndex: 1,
-            endColumnIndex: columnIndex + block.lines.length + 1,
-          ),
-          mergeType: 'MERGE_ALL', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      columnIndex += block.lines.length + 1;
-    }
-    var rowIndex = 3;
-    for (var _ in competition.pairs) {
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: rowIndex,
-            startColumnIndex: 0,
-            endRowIndex: rowIndex + competition.judges.length,
-            endColumnIndex: 5,
-          ),
-          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: rowIndex,
-            startColumnIndex: columnIndex + 1,
-            endRowIndex: rowIndex + competition.judges.length,
-            endColumnIndex: columnIndex + 3,
-          ),
-          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      rowIndex += competition.judges.length;
-    }
-    mergeRequests.add(sheets.Request(
-      mergeCells: sheets.MergeCellsRequest(
-        range: sheets.GridRange(
-          sheetId: sheetId,
-          startRowIndex: 0,
-          startColumnIndex: columnIndex,
-          endRowIndex: 3,
-          endColumnIndex: columnIndex + 3,
-        ),
-        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-      ),
-    ));
-    final batchUpdateRequest = sheets.BatchUpdateSpreadsheetRequest(
-      requests: mergeRequests,
-    );
-    await sheetsApi.spreadsheets.batchUpdate(batchUpdateRequest, spreadsheetId);
-
-    await sheetsApi.spreadsheets.values.append(
-      pairsRange, 
-      spreadsheetId!, 
-      '${spreadsheet.sheets![1].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-    await sheetsApi.spreadsheets.values.append(
-      judgesRange, 
-      spreadsheetId, 
-      '${spreadsheet.sheets![2].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-  
-      setState(() {
-      _debugText = 'Данные успешно отправлены в новую таблицу ${competition.name}';
-    });
-  }
 
   // Prompts the user to authorize `scopes`.
   //
