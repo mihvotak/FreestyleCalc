@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert' show json;
 import 'dart:io';
+import 'dart:math';
 
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -42,8 +43,9 @@ class _SignInDemoState extends State<SignInDemo> {
   String _debugText = '';
   String _errorMessage = '';
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
-  String? _lastSheetName;
-  String? _lastSheetId;
+  //String? _lastSheetName;
+  //String? _lastSheetId;
+  List<drive.File>? _sheets = null;
   
   @override
   void dispose() {
@@ -139,7 +141,7 @@ class _SignInDemoState extends State<SignInDemo> {
       setState(() {
         _debugText = '';
         model.isAuthorized = false;
-        _errorMessage = 'Разрешения не даны или токен протух';
+        _errorMessage = 'Разрешения не даны или токен просрочен';
       });
       return;
     }
@@ -150,13 +152,14 @@ class _SignInDemoState extends State<SignInDemo> {
       final authenticatedClient = model.authorization!.authClient(scopes: scopes);
       final driveApi = drive.DriveApi(authenticatedClient);
       final filelist = await driveApi.files.list(corpus: 'user', includeItemsFromAllDrives: true, supportsAllDrives: true,
-        q: 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false'
+        q: 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false and \'${model.currentUser!.email}\' in owners'
       );
-      _lastSheetId = filelist.files?.firstOrNull?.id;
-      _lastSheetName = filelist.files?.firstOrNull?.name;
+      _sheets = filelist.files;
+      //_lastSheetId = filelist.files?.firstOrNull?.id;
+      //_lastSheetName = filelist. files?.firstOrNull?.name;
       setState(() {
-        if (_lastSheetName != null && _lastSheetId != null) {
-          _debugText = 'Последняя таблица: $_lastSheetName';
+        if (_sheets != null) {
+          _debugText = '';
         } else {
           _debugText = 'Таблиц не найдено.';
         }
@@ -442,8 +445,9 @@ class _SignInDemoState extends State<SignInDemo> {
         setState(() {
           model.isAuthorized = true;
           _errorMessage = '';
+          _debugText = '';
         });
-        unawaited(_handleGetSheets(model.currentUser!));
+        //unawaited(_handleGetSheets(model.currentUser!));
       }
     } on GoogleSignInException catch (e) {
       _errorMessage = _errorMessageFromSignInException(e);
@@ -474,76 +478,94 @@ class _SignInDemoState extends State<SignInDemo> {
   List<Widget> _buildAuthenticatedWidgets(GoogleSignInAccount user) {
     return <Widget>[
       // The user is Authenticated.
-      ListTile(
-        leading: GoogleUserCircleAvatar(identity: user),
-        title: Text(user.displayName ?? ''),
-        subtitle: Text(user.email),
-      ),
-      const Text('Авторизация успешна.'),
+        /*Column(
+          children: [
+          ListTile(
+            leading: GoogleUserCircleAvatar(identity: user),
+            title: Text(user.displayName ?? ''),
+            subtitle: Text(user.email),
+          ),
+          ElevatedButton(onPressed: _handleSignOut, child: const Text('Выйти из Google аккаунта')),
+        ]
+      ),*/
+      //const Text('Авторизация успешна.'),
       if (model.isAuthorized) ...<Widget>[
         // The user has Authorized all required scopes.
-        if (_debugText.isNotEmpty) Text(_debugText, textAlign: .center),
-        ElevatedButton(
-          child: const Text('Обновить инфо о последней таблице'),
-          onPressed: () => _handleGetSheets(user),
-        ),
         if (widget.model.competition != null)
-        ElevatedButton(
-          child: const Text('Сохранить в новую гуглотаблицу'),
-          onPressed: () => _handleSaveToSheet(user, widget.model.competition!),
+        Container(
+          margin: EdgeInsetsDirectional.only( top: 20),
+          child: Column(
+            children: [
+              ElevatedButton(
+                child: const Text('Сохранить в новую гуглотаблицу'),
+                onPressed: () => _handleSaveToSheet(user, widget.model.competition!),
+              ),
+              if (_sheets == null)
+              ElevatedButton(
+                child: const Text('Сохранить в существующую таблицу...'),
+                onPressed: () => _handleGetSheets(user),
+              ),
+              if (_sheets != null)
+              for (var file in _sheets!.sublist(0, min(3, _sheets!.length)))
+              ...<Widget>[
+                ElevatedButton(
+                  child: Text('Сохранить в \'${file.name}\''),
+                  onPressed: () => _handleSaveToSheetWithId(user, widget.model.competition!, file.id!),
+                ),
+              ]
+            ],
+          ),
         ),
-        if (widget.model.competition != null && _lastSheetName != null)
-        ElevatedButton(
-          child: Text('Сохранить в гуглотаблицу \'$_lastSheetName\''),
-          onPressed: () => _handleSaveToSheetWithId(user, widget.model.competition!, _lastSheetId!),
-        ),
-        /*if (_serverAuthCode.isEmpty)
-          ElevatedButton(
-            child: const Text('REQUEST SERVER CODE'),
-            onPressed: () => _handleGetAuthCode(user),
-          )
-        else
-          Text('Server auth code:\n$_serverAuthCode'),*/
+        if (_debugText.isNotEmpty) Text(_debugText, textAlign: .center),
       ] else ...<Widget>[
         // The user has NOT Authorized all required scopes.
-        const Text('Приложению нужны разрешения на доступ к таблицам через Google Диск.', textAlign: .center,),
-        ElevatedButton(
-          onPressed: () => _handleAuthorizeScopes(user),
-          child: const Text('Дать разрешения'),
-        ),
+        Column(
+          spacing: 20,
+          children: [
+            Text('Приложению нужны разрешения на доступ к таблицам ${user.email} через Google Диск.', textAlign: .center,),
+            ElevatedButton(
+              onPressed: () => _handleAuthorizeScopes(user),
+              child: const Text('Дать разрешения'),
+            ),
+          ]
+        )
       ],
-      ElevatedButton(onPressed: _handleSignOut, child: const Text('Выйти из Google аккаунта')),
     ];
   }
 
   /// Returns the list of widgets to include if the user is not authenticated.
   List<Widget> _buildUnauthenticatedWidgets() {
     return <Widget>[
-      const Text('Авторизация не пройдена.'),
-      // #docregion ExplicitSignIn
-      if (GoogleSignIn.instance.supportsAuthenticate())
-        ElevatedButton(
-          onPressed: () async {
-            try {
-              await GoogleSignIn.instance.authenticate();
-            } catch (e) {
-              // #enddocregion ExplicitSignIn
-              _errorMessage = e.toString();
-              // #docregion ExplicitSignIn
-            }
-          },
-          child: const Text('Войти'),
-        )
-      else ...<Widget>[
-        if (kIsWeb)
-          web.renderButton()
-        // #enddocregion ExplicitSignIn
-        else
-          const Text(
-            'This platform does not have a known authentication method',
-          ),
-        // #docregion ExplicitSignIn
-      ],
+      Column(
+        spacing: 20,
+        children: [
+          const Text('Необходима авторизация'),
+          // #docregion ExplicitSignIn
+          if (GoogleSignIn.instance.supportsAuthenticate())
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await GoogleSignIn.instance.authenticate();
+                } catch (e) {
+                  // #enddocregion ExplicitSignIn
+                  _errorMessage = e.toString();
+                  // #docregion ExplicitSignIn
+                }
+              },
+              child: const Text('Войти'),
+            )
+          else ...<Widget>[
+            if (kIsWeb)
+              web.renderButton()
+            // #enddocregion ExplicitSignIn
+            else
+              const Text(
+                'This platform does not have a known authentication method',
+              ),
+            // #docregion ExplicitSignIn
+          ],
+        ],
+      ),
       // #enddocregion ExplicitSignIn
     ];
   }
@@ -551,7 +573,7 @@ class _SignInDemoState extends State<SignInDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Войти через Google')),
+      appBar: AppBar(title: const Text('Google таблицы')),
       body: ConstrainedBox(
         constraints: const BoxConstraints.expand(),
         child: _buildBody(),
