@@ -20,6 +20,7 @@ class Model extends ChangeNotifier {
   String? error;
   bool expandNew = false;
   bool expandRecent = false;
+  bool expandExport = false;
 
   GoogleSignInAccount? currentUser;
   bool initialized = false;
@@ -29,6 +30,12 @@ class Model extends ChangeNotifier {
   void changeExpandNew()
   {
     expandNew = !expandNew;
+    notifyListeners();
+  }
+
+  void changeExpandExport()
+  {
+    expandExport = !expandExport;
     notifyListeners();
   }
 
@@ -69,15 +76,20 @@ class Model extends ChangeNotifier {
     }
   }
 
-  void createFromTemplate() {
+  Future<void> createFromTemplate() async {
     String id = (Random().nextInt(1<<31) % 1000000000).toString().padLeft(9, "0");
     String name = "Без имени $id";
     final newCompetition = Competition(id, name);
+    await readMarksList(newCompetition);
     competition = newCompetition;
+}
+
+  Future<void>  createFromTemplateAndFill() async {
+    await createFromTemplate();
     for (int j = 0; j < 3; j++) {
       var judge = Judge();
       judge.setName("Судья номер $j");
-      newCompetition.judges.add(judge);
+      competition!.judges.add(judge);
     }
     for (int i = 0; i < 10; i++) {
       var pair = Pair(i + 1);
@@ -85,9 +97,8 @@ class Model extends ChangeNotifier {
       pair.setHaldlerName("Хендлер номер $i");
       pair.setDogBreed("порода $i");
       pair.setDogName("Кличка $i");
-      newCompetition.pairs.add(pair);
+      competition!.pairs.add(pair);
     }
-    readMarksList(newCompetition);
   }
 
   Future<void> readMarksList(Competition competition) async {

@@ -16,6 +16,8 @@ class Competition extends ChangeNotifier{
   Map<String, dynamic> toJson() => {'id' : id, 'name': name, 'pairs': pairs.map((pair) => pair.toJson()).toList(), 'judges': judges.map((judge) => judge.toJson()).toList(), 'marksList': marksList.toJson()};
   
   String id;
+  String? sheetId;
+  String? sheetName;
   String name;
   List<Pair> pairs = [];
   List<Judge> judges = [];
@@ -51,11 +53,20 @@ class Competition extends ChangeNotifier{
     notifyListeners();
   }
 
+  void addPair()
+  {
+    pairs.add(Pair(pairs.length + 1));
+    saved.value = false;
+    updatePlaces();
+  }
+
   void removePair(Pair pair)
   {
     pairs.remove(pair);
     for (int i = 0; i < pairs.length; i++) {
       pairs[i].startNumber = i + 1;
     }
+    saved.value = false;
+    updatePlaces();
   }
 }

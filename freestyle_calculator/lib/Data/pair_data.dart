@@ -19,7 +19,7 @@ enum ClassKind {
 
   static ClassKind parse(String classKindAsString) {
     for (ClassKind element in ClassKind.values) {
-      if (element.toString() == classKindAsString) {
+      if (element.toString() == classKindAsString || element.toUserString() == classKindAsString) {
           return element;
       }
     }

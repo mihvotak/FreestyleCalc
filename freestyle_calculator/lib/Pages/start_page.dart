@@ -61,6 +61,7 @@ class SatrtPage extends StatelessWidget {
                 ) : 
                 Container(),
               ),
+
               Container(
                 margin: EdgeInsets.all(10),
                 color: Theme.of(context).focusColor,
@@ -80,26 +81,78 @@ class SatrtPage extends StatelessWidget {
                       ),
                     ),
                     if (model.expandNew)
-                      LineButton("Из шаблона", () { 
-                        if (model.competition != null && !model.competition!.saved.value) {
-                          Dialogs.showConfirmDialog(context, () => model.createFromTemplate(),
-                            'Не сохранено',
-                            'Текущий открытый файл не сохранён. При создании нового файла все изменения в текущем будут потеряны. Продолжить?'
-                          );
-                        }
-                        else { model.createFromTemplate(); }
-                      }),
+                    LineButton("Из шаблона", () { 
+                      if (model.competition != null && !model.competition!.saved.value) {
+                        Dialogs.showConfirmDialog(context, () => model.createFromTemplateAndFill(),
+                          'Не сохранено',
+                          'Текущий открытый файл не сохранён. При создании нового файла все изменения в текущем будут потеряны. Продолжить?'
+                        );
+                      }
+                      else { model.createFromTemplateAndFill(); }
+                    }),
+                    if (model.expandNew)
                     LineButton( 
-                      "Из гуглотаблицы", 
+                      "Импорт из гуглотаблицы...", 
                       () => Navigator.of(context).push(
                         CupertinoPageRoute(
-                          builder: (context) => SignInDemo(model),
+                          builder: (context) => SignInDemo(model, true, false, false),
                         ),
                       )
-                    )
+                    ),
                   ],
                 ),
               ),
+
+              if (model.competition != null)
+              Container(
+                margin: EdgeInsets.all(10),
+                color: Theme.of(context).focusColor,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+                      color: Theme.of(context).hoverColor,
+                      child: Row(
+                        mainAxisAlignment: .center,
+                        children: [
+                          Expanded(
+                            child: Text("Экспорт в гуглотаблицу", textAlign: .center),
+                          ),
+                          SquareButton(model.expandExport ? Icons.expand_less : Icons.expand_more, model.changeExpandExport)
+                        ],
+                      ),
+                    ),
+                    if (model.expandExport && model.competition!.sheetId != null && model.competition!.sheetName != null)
+                    LineButton( 
+                      "В ту же \"${model.competition!.sheetName}\"", 
+                      () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => SignInDemo(model, false, false, true),
+                        ),
+                      )
+                    ),
+                    if (model.expandExport)
+                    LineButton( 
+                      "В новую таблицу", 
+                      () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => SignInDemo(model, false, true, false),
+                        ),
+                      )
+                    ),
+                    if (model.expandExport)
+                    LineButton( 
+                      "В существующую...", 
+                      () => Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => SignInDemo(model, false, false, false),
+                        ),
+                      )
+                    ),
+                  ],
+                ),
+              ),
+              
               //LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
               RecentCompetitionsWidget(model),
             ],

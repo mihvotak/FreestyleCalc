@@ -5,59 +5,51 @@ import 'package:freestyle_calculator/Data/pair_data.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 import 'package:freestyle_calculator/Pages/pair_edit_page.dart';
 
-class PairsPage extends StatefulWidget {
+class PairsPage extends StatelessWidget {
   const PairsPage(this.competition, {super.key});
 
   final Competition competition;
   
   @override
-  State<PairsPage> createState() => _PairsPageState();
-}
-
-class _PairsPageState extends State<PairsPage> {
-
-  void _addPair() {
-    setState(() {
-      widget.competition.pairs.add(Pair(widget.competition.pairs.length + 1));
-      widget.competition.saved.value = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text("Участники"),
-      ),
-      body: Column(
-        children: [
-          Container(
-            margin: EdgeInsets.all(0),
-            alignment: .center,
-            child: Text(
-              'всего пар: ${widget.competition.pairs.length}',
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
+    return ListenableBuilder(
+      listenable: competition,
+      builder: (context, child) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: Text("Участники"),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: .start,
-                children: [
-                  for (var pair in widget.competition.pairs)
-                    PairLine(competition: widget.competition, pair: pair),
-                ],
+          body: Column(
+            children: [
+              Container(
+                margin: EdgeInsets.all(0),
+                alignment: .center,
+                child: Text(
+                  'всего пар: ${competition.pairs.length}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                )
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: .start,
+                    children: [
+                      for (var pair in competition.pairs)
+                        PairLine(competition: competition, pair: pair),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addPair,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: competition.addPair,
+            tooltip: 'Increment',
+            child: const Icon(Icons.add),
+          ),
+        );
+      }
     );
   }
 }

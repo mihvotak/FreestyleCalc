@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:convert' show json;
 import 'dart:io';
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/model.dart';
+import 'package:freestyle_calculator/Data/sheets_util.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
 import 'package:freestyle_calculator/google_api/web_wrapper.dart' as web;
 
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -29,9 +29,12 @@ String? serverClientId = clientId =
 
 
 class SignInDemo extends StatefulWidget {
-  const SignInDemo(this.model, {super.key});
+  const SignInDemo(this.model, this.isImport, this.createNew, this.exportToId, {super.key});
 
   final Model model;
+  final bool isImport;
+  final bool createNew;
+  final bool exportToId;
 
   @override
   State createState() => _SignInDemoState();
@@ -43,10 +46,13 @@ class _SignInDemoState extends State<SignInDemo> {
   String _debugText = '';
   String _errorMessage = '';
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
-  //String? _lastSheetName;
-  //String? _lastSheetId;
-  List<drive.File>? _sheets = null;
+  List<drive.File>? _sheets;
+  SheetsUtil sheetsUtil = SheetsUtil();
   
+  static const String resultsSheetName = "Результаты";
+  static const String pairsSheetName = "Участники";
+  static const String judgesSheetName = "Судьи";
+
   @override
   void dispose() {
     _authSubscription?.cancel();
@@ -82,9 +88,14 @@ class _SignInDemoState extends State<SignInDemo> {
         _handleAuthenticationEvent,
         onError: _handleAuthenticationError
       );
-      setState(() {
-        
-      });
+      if (model.currentUser != null) {
+        onReady(model.currentUser!);
+      }
+      else {
+        setState(() {
+          _debugText = "model.initialized == true, но model.currentUser == null";
+        });
+      }
     }
     // #enddocregion Setup
   }
@@ -116,6 +127,19 @@ class _SignInDemoState extends State<SignInDemo> {
     // If the user has already granted access to the required scopes, call the
     // REST API.
     if (user != null && model.authorization != null) {
+      onReady(user);
+    }
+  }
+
+  void onReady(GoogleSignInAccount user)
+  {
+    if (widget.createNew) {
+      _exportToNewSheet(user, model.competition!);
+    }
+    else if (widget.exportToId) {
+      _exportToSheetWithId(user, model.competition!, model.competition!.sheetId!);
+    }
+    else {
       unawaited(_handleGetSheets(user));
     }
   }
@@ -130,7 +154,6 @@ class _SignInDemoState extends State<SignInDemo> {
     });
   }
 
-  // Calls the Sheets API REST endpoint for the signed-in user to retrieve information.
   Future<void> _handleGetSheets(GoogleSignInAccount user) async {
     setState(() {
       _debugText = 'Запрашиваем список таблиц...';
@@ -155,8 +178,6 @@ class _SignInDemoState extends State<SignInDemo> {
         q: 'mimeType = \'application/vnd.google-apps.spreadsheet\' and trashed = false and \'${model.currentUser!.email}\' in owners'
       );
       _sheets = filelist.files;
-      //_lastSheetId = filelist.files?.firstOrNull?.id;
-      //_lastSheetName = filelist. files?.firstOrNull?.name;
       setState(() {
         if (_sheets != null) {
           _debugText = '';
@@ -174,252 +195,177 @@ class _SignInDemoState extends State<SignInDemo> {
     }
   }
 
-  Future<void> _handleSaveToSheet(GoogleSignInAccount user, Competition competition) async {
+  Future<void> _exportToNewSheet(GoogleSignInAccount user, Competition competition) async {
     setState(() {
-      _debugText = 'Отправляем...';
+      _debugText = 'Создаём новую гуглотаблицу...';
     });
-    model.authorization = await user
-        .authorizationClient
-        .authorizeScopes(scopes);
-    final authenticatedClient = model.authorization!.authClient(scopes: scopes);
-    final sheetsApi = sheets.SheetsApi(authenticatedClient);
-    
-    var newSpreadsheet = sheets.Spreadsheet(
-      properties: sheets.SpreadsheetProperties(title: competition.name),
-      sheets: [
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Результаты")),
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Участники")),
-        sheets.Sheet(properties: sheets.SheetProperties(title: "Судьи")),
-      ]
-    );
-    sheets.Spreadsheet response = await sheetsApi.spreadsheets.create(newSpreadsheet);
-    final spreadsheetId = response.spreadsheetId;
-    setState(() {
-      _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
-    });
-    if (spreadsheetId != null) {
-      _exportToSheet(sheetsApi, response, competition, spreadsheetId);
+    try {
+      model.authorization = await user
+          .authorizationClient
+          .authorizeScopes(scopes);
+      final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+      final sheetsApi = sheets.SheetsApi(authenticatedClient);
+      
+      var newSpreadsheet = sheets.Spreadsheet(
+        properties: sheets.SpreadsheetProperties(title: competition.name),
+        sheets: [
+          sheets.Sheet(properties: sheets.SheetProperties(title: resultsSheetName)),
+          sheets.Sheet(properties: sheets.SheetProperties(title: pairsSheetName)),
+          sheets.Sheet(properties: sheets.SheetProperties(title: judgesSheetName)),
+        ]
+      );
+      sheets.Spreadsheet response = await sheetsApi.spreadsheets.create(newSpreadsheet);
+      final spreadsheetId = response.spreadsheetId;
+      setState(() {
+        _debugText = spreadsheetId != null ? "Таблица создана: $spreadsheetId" : "Таблица не создана!";
+      });
+      if (spreadsheetId != null) {
+        await sheetsUtil.exportToSheet(sheetsApi, response, competition, spreadsheetId);
+        model.competition!.sheetId = response.spreadsheetId;
+        model.competition!.sheetName = response.properties!.title;
+        setState(() {
+          _debugText = 'Данные успешно отправлены в новую таблицу ${competition.name}';
+        });
+      }
+    }
+    catch(e)
+    {
+        setState(() {
+          _debugText = 'Ошибка: ${e.toString()}';
+        });
     }
   }
 
-  static const String resultsSheetName = "Результаты";
-  static const String pairsSheetName = "Участники";
-  static const String judgesSheetName = "Судьи";
-
-  Future<void> _handleSaveToSheetWithId(GoogleSignInAccount user, Competition competition, String id) async {
+  Future<void> _exportToSheetWithId(GoogleSignInAccount user, Competition competition, String id) async {
     setState(() {
       _debugText = 'Отправляем...';
     });
-    model.authorization = await user
-        .authorizationClient
-        .authorizeScopes(scopes);
-    final authenticatedClient = model.authorization!.authClient(scopes: scopes);
-    final sheetsApi = sheets.SheetsApi(authenticatedClient);
-    
-    sheets.Spreadsheet response = await sheetsApi.spreadsheets.get(id);
-    if (response.sheets == null) {
-      setState(() {
-        _debugText = "Ошибка. Таблица c id='$id' не найдена!";
-      });
+    try {
+      model.authorization = await user
+          .authorizationClient
+          .authorizeScopes(scopes);
+      final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+      final sheetsApi = sheets.SheetsApi(authenticatedClient);
+      
+      sheets.Spreadsheet response = await sheetsApi.spreadsheets.get(id);
+      if (response.sheets == null) {
+        setState(() {
+          _debugText = "Ошибка. Таблица c id='$id' не найдена!";
+        });
+      }
+      else if (response.sheets!.length < 3) {
+        setState(() {
+          _debugText = "Ошибка. В таблице должно быть три листа или больше!";
+        });
+      }
+      else if (response.sheets![0].properties == null || response.sheets![0].properties!.title != resultsSheetName) {
+        setState(() {
+          _debugText = "Ошибка. В таблице первый лист должен называться '$resultsSheetName'";
+        });
+      }
+      else if (response.sheets![1].properties == null || response.sheets![1].properties!.title != pairsSheetName) {
+        setState(() {
+          _debugText = "Ошибка. В таблице второй лист должен называться '$pairsSheetName'";
+        });
+      }
+      else if (response.sheets![2].properties == null || response.sheets![2].properties!.title != judgesSheetName) {
+        setState(() {
+          _debugText = "Ошибка. В таблице третий лист должен называться '$judgesSheetName'";
+        });
+      }
+      else {
+        setState(() {
+          _debugText = "Таблица найдена, отправляем данные...";
+        });
+        
+        final batchUpdateRequest = sheets.BatchUpdateSpreadsheetRequest(
+          requests: [
+            sheets.Request(
+              unmergeCells: sheets.UnmergeCellsRequest(
+                range: sheets.GridRange(
+                  sheetId: response.sheets![0].properties!.sheetId,
+                  // Если вы хотите разгруппировать вообще все ячейки на листе:
+                  startRowIndex: 0,
+                  endRowIndex: 1000, 
+                  startColumnIndex: 0,
+                  endColumnIndex: 26,
+                ),
+              ),
+            ),
+          ],
+        );
+
+        await sheetsApi.spreadsheets.batchUpdate(batchUpdateRequest, id);
+        await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![0].properties!.title}!A1:z');
+        await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![1].properties!.title}!A1:z');
+        await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![2].properties!.title}!A1:z');
+        await sheetsUtil.exportToSheet(sheetsApi, response, competition, id);
+        model.competition!.sheetId = id;
+        model.competition!.sheetName = response.properties!.title;
+        setState(() {
+          _debugText = "Таблица сохранена.";
+        });
+      }
     }
-    else if (response.sheets!.length < 3) {
+    catch (e)
+    {
       setState(() {
-        _debugText = "Ошибка. В таблице должно быть три листа или больше!";
+        _debugText = "Ошибка при экспорте: ${e.toString()}";
       });
-    }
-    else if (response.sheets![0].properties == null || response.sheets![0].properties!.title != resultsSheetName) {
-      setState(() {
-        _debugText = "Ошибка. В таблице первый лист должен называться '$resultsSheetName'";
-      });
-    }
-    else if (response.sheets![1].properties == null || response.sheets![1].properties!.title != pairsSheetName) {
-      setState(() {
-        _debugText = "Ошибка. В таблице второй лист должен называться '$pairsSheetName'";
-      });
-    }
-    else if (response.sheets![2].properties == null || response.sheets![2].properties!.title != judgesSheetName) {
-      setState(() {
-        _debugText = "Ошибка. В таблице третий лист должен называться '$judgesSheetName'";
-      });
-    }
-    else {
-      setState(() {
-        _debugText = "Таблица найдена, отправляем данные...";
-      });
-      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![0].properties!.title}!A1:z');
-      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![1].properties!.title}!A1:z');
-      await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), id, '${response.sheets![2].properties!.title}!A1:z');
-      await _exportToSheet(sheetsApi, response, competition, id);
     }
   }
 
+  Future<void> _importFromSheetWithId(GoogleSignInAccount user, String id) async {
+    setState(() {
+      _debugText = 'Загрузка гуглотаблицы...';
+    });
+    try{
+      model.authorization = await user
+          .authorizationClient
+          .authorizeScopes(scopes);
+      final authenticatedClient = model.authorization!.authClient(scopes: scopes);
+      final sheetsApi = sheets.SheetsApi(authenticatedClient);
+      
+      sheets.Spreadsheet response = await sheetsApi.spreadsheets.get(id, includeGridData: true);
+      if (response.sheets == null) {
+        setState(() {
+          _debugText = "Ошибка. Таблица c id='$id' не найдена!";
+        });
+      }
+      else if (response.sheets!.isEmpty) {
+        setState(() {
+          _debugText = "Ошибка. В таблице должен быть хотя бы один лист!";
+        });
+      }
+      else {
+        await model.createFromTemplate();
+        model.competition!.name = response.properties!.title ?? "(no name)";
+        sheets.Sheet? sheet = response.sheets?.firstWhereOrNull((s) => s.properties != null && s.properties!.title == pairsSheetName);
+        sheet ??= response.sheets![0];
+        await sheetsUtil.importPairsFromSheet(sheet, model.competition!);
 
-  Future<void> _exportToSheet(sheets.SheetsApi sheetsApi, sheets.Spreadsheet spreadsheet, Competition competition, String spreadsheetId) async {
-    for (var pair in competition.pairs) {
-      pair.prepareMarks(competition);
-    }
-    var line0 = ["№", "Класс", "Проводник", "Порода", "Кличка", "Судья"];
-    for (var block in competition.marksList.blocks) {
-      for (var (l, _) in block.lines.indexed) {
-        line0.add(l == 0 ? block.name : "");
-      }
-      line0.add("");
-    }
-    line0.addAll(["Сумма", "Среднее", "Место"]);
-    var line1 = ["", "", "", "", "", ""];
-    for (var block in competition.marksList.blocks) {
-      for (var line in block.lines) {
-        line1.add(line.name);
-      }
-      line1.add("Σ");
-    }
-    line1.addAll(["", "", ""]);
-    var line2 = ["", "", "", "", "", ""];
-    for (var block in competition.marksList.blocks) {
-      for (var line in block.lines) {
-        line2.add(line.maxValue.toString());
-      }
-      line2.add("");
-    }
-    line2.addAll(["", "", ""]);
-    var lines = [
-        line0,
-        line1,
-        line2];
-    for (var pair in competition.pairs) {
-      for (var (j, judge) in competition.judges.indexed) {
-        var line = [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName];
-        line.add(judge.name);
-        for (var (b, block) in competition.marksList.blocks.indexed) {
-          for (var (l, _) in block.lines.indexed) {
-            line.add(pair.judgesMarks[j].blocks[b].marks[l].markValue?.toString() ?? "");
-          }
-          line.add(pair.judgesMarks[j].blocks[b].sum.toString());
+        sheet = response.sheets?.firstWhereOrNull((s) => s.properties != null && s.properties!.title == judgesSheetName);
+        if (sheet != null) {
+          await sheetsUtil.importJudgesFromSheet(sheet, model.competition!);
         }
-        line.add(pair.judgesMarks[j].sum.toString());
-        if (j == 0) { 
-          line.add(pair.meanSum.toStringAsFixed(2)); 
-          line.add(pair.place?.toString() ?? ""); 
+
+        sheet = response.sheets?.firstWhereOrNull((s) => s.properties != null && s.properties!.title == resultsSheetName);
+        if (sheet != null && model.competition!.marksList.blocks.isNotEmpty) {
+          await sheetsUtil.importResultsFromSheet(sheet, model.competition!);
         }
-        else { line.add(""); line.add(""); }
-        lines.add(line);
+
+        model.competition!.sheetId = response.spreadsheetId;
+        model.competition!.sheetName = response.properties!.title;
+        setState(() {
+          _debugText = "Загружено.";
+        });
       }
     }
-    var resultsRange = sheets.ValueRange.fromJson({
-      "values": lines
-    });
-    var pairsRange = sheets.ValueRange.fromJson({
-      "values": [
-        ["№", "Класс", "Проводник", "порода", "Кличка"],
-        for (var pair in competition.pairs)
-          [pair.startNumber.toString(), pair.classKind.toUserString(), pair.handlerName, pair.dogBreed, pair.dogName]
-      ]
-    });
-    var judgesRange = sheets.ValueRange.fromJson({
-      "values": [
-        ["№", "ФИО судьи"],
-        for (var (index, judge) in competition.judges.indexed)
-          [(index + 1).toString(), judge.name]
-      ]
-    });
-
-    await sheetsApi.spreadsheets.values.append(
-      resultsRange, 
-      spreadsheetId!, 
-      '${spreadsheet.sheets![0].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-    final sheetId = spreadsheet.sheets![0].properties!.sheetId;
-    final List<sheets.Request> mergeRequests = [];
-    mergeRequests.add(sheets.Request(
-      mergeCells: sheets.MergeCellsRequest(
-        range: sheets.GridRange(
-          sheetId: sheetId,
-          startRowIndex: 0,
-          startColumnIndex: 0,
-          endRowIndex: 3,
-          endColumnIndex: 6,
-        ),
-        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-      ),
-    ));
-    var columnIndex = 6;
-    for (var block in competition.marksList.blocks) {
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: 0,
-            startColumnIndex: columnIndex,
-            endRowIndex: 1,
-            endColumnIndex: columnIndex + block.lines.length + 1,
-          ),
-          mergeType: 'MERGE_ALL', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      columnIndex += block.lines.length + 1;
+    catch (e){
+        setState(() {
+          _debugText = "Ошибка: ${e.toString()}";
+        });
     }
-    var rowIndex = 3;
-    for (var _ in competition.pairs) {
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: rowIndex,
-            startColumnIndex: 0,
-            endRowIndex: rowIndex + competition.judges.length,
-            endColumnIndex: 5,
-          ),
-          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      mergeRequests.add(sheets.Request(
-        mergeCells: sheets.MergeCellsRequest(
-          range: sheets.GridRange(
-            sheetId: sheetId,
-            startRowIndex: rowIndex,
-            startColumnIndex: columnIndex + 1,
-            endRowIndex: rowIndex + competition.judges.length,
-            endColumnIndex: columnIndex + 3,
-          ),
-          mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-        ),
-      ));
-      rowIndex += competition.judges.length;
-    }
-    mergeRequests.add(sheets.Request(
-      mergeCells: sheets.MergeCellsRequest(
-        range: sheets.GridRange(
-          sheetId: sheetId,
-          startRowIndex: 0,
-          startColumnIndex: columnIndex,
-          endRowIndex: 3,
-          endColumnIndex: columnIndex + 3,
-        ),
-        mergeType: 'MERGE_COLUMNS', // MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS
-      ),
-    ));
-    final batchUpdateRequest = sheets.BatchUpdateSpreadsheetRequest(
-      requests: mergeRequests,
-    );
-    await sheetsApi.spreadsheets.batchUpdate(batchUpdateRequest, spreadsheetId);
-
-    await sheetsApi.spreadsheets.values.append(
-      pairsRange, 
-      spreadsheetId!, 
-      '${spreadsheet.sheets![1].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-    await sheetsApi.spreadsheets.values.append(
-      judgesRange, 
-      spreadsheetId, 
-      '${spreadsheet.sheets![2].properties!.title}!A1', 
-      valueInputOption: 'USER_ENTERED'
-    );
-  
-      setState(() {
-      _debugText = 'Данные успешно отправлены в новую таблицу ${competition.name}';
-    });
   }
 
   // Prompts the user to authorize `scopes`.
@@ -447,7 +393,7 @@ class _SignInDemoState extends State<SignInDemo> {
           _errorMessage = '';
           _debugText = '';
         });
-        //unawaited(_handleGetSheets(model.currentUser!));
+        onReady(model.currentUser!);
       }
     } on GoogleSignInException catch (e) {
       _errorMessage = _errorMessageFromSignInException(e);
@@ -491,26 +437,29 @@ class _SignInDemoState extends State<SignInDemo> {
       //const Text('Авторизация успешна.'),
       if (model.isAuthorized) ...<Widget>[
         // The user has Authorized all required scopes.
-        if (widget.model.competition != null)
         Container(
           margin: EdgeInsetsDirectional.only( top: 20),
           child: Column(
             children: [
-              ElevatedButton(
-                child: const Text('Сохранить в новую гуглотаблицу'),
-                onPressed: () => _handleSaveToSheet(user, widget.model.competition!),
-              ),
-              if (_sheets == null)
+              /*if (_sheets == null)
               ElevatedButton(
                 child: const Text('Сохранить в существующую таблицу...'),
                 onPressed: () => _handleGetSheets(user),
-              ),
+              ),*/
+              if (_sheets != null)
+              Text(widget.isImport ? "Выберите из какой таблицы считать" : "Выберите в какую таблицу сохранить"),
               if (_sheets != null)
               for (var file in _sheets!.sublist(0, min(3, _sheets!.length)))
               ...<Widget>[
+                if (widget.isImport)
                 ElevatedButton(
-                  child: Text('Сохранить в \'${file.name}\''),
-                  onPressed: () => _handleSaveToSheetWithId(user, widget.model.competition!, file.id!),
+                  child: Text('\'${file.name}\''),
+                  onPressed: () => _importFromSheetWithId(user, file.id!),
+                ),
+                if (!widget.isImport)
+                ElevatedButton(
+                  child: Text('\'${file.name}\''),
+                  onPressed: () => _exportToSheetWithId(user, widget.model.competition!, file.id!),
                 ),
               ]
             ],
