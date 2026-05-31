@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/mark_list.dart';
+import 'package:freestyle_calculator/Pages/dialogs.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 import 'package:freestyle_calculator/Pages/mark_line_edit_page.dart';
 
@@ -52,6 +53,7 @@ class MarksListPage extends StatelessWidget {
               ),
               Expanded(
                 child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: 80),
                   child: Column(
                     spacing: 20,
                     mainAxisAlignment: .start,
@@ -68,7 +70,7 @@ class MarksListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          marksList.addBlock;
+          marksList.addBlock();
           competition.saved.value = false;
         },
         tooltip: 'Добавить группу',
@@ -114,9 +116,12 @@ class LinesBlockWidget extends StatelessWidget {
                   ),
                   SquareButton(
                     Icons.remove_circle_outline, 
-                    () {
-                      marksList.removeBlock(linesBlock);
-                      competition.saved.value = false;
+                    () { 
+                      Dialogs.showConfirmDialog(context, () { marksList.removeBlock(linesBlock);
+                      competition.saved.value = false; },
+                          'Удалить блок?',
+                          'Блок \'${linesBlock.name}\' будет удалён со всеми строками, без возможности восстановления. Уверены?'
+                        );
                     }
                   ),
                 ],
@@ -155,8 +160,16 @@ class MarkLineWidget extends StatelessWidget {
           return Row(
             children: [
               CellWithText(width: 10, text: markLine.name),
-              CellWithText(width: 2, text: markLine.maxValue.toString()),
-              CellWithText(width: 1, text: markLine.isPenalty ? "-" : "+"),
+              CellWithText(width: 2, text: markLine.maxValue.toString(), softWrap: false),
+              CellWithText(width: 1, text: markLine.isPenalty ? "↘" : "↗", softWrap: false),
+              SquareButton(
+                Icons.remove_circle_outline, 
+                () { 
+                  linesBlock.removeLine(markLine);
+                  marksList.updateSum();
+                  competition.saved.value = false;
+                }
+              ),
             ],
           );
         },

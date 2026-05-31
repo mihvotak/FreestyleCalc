@@ -80,18 +80,25 @@ class JudgeLine extends StatelessWidget {
       onPressed: () => Navigator.of(context).push(
         CupertinoPageRoute(
           title: "$judge#{judge.startNumber}",
-          builder: (context) => JudgeEditPage(competition, judge, removeFunction),
+          builder: (context) => JudgeEditPage(competition, judge),
         ),
       ),
-      child: Row(
-        children: [
-          ListenableBuilder(
-            listenable: judge,
-            builder: (context, child) {
-              return CellWithText(width: 2, text: judge.name);
-            }
-          ),
-        ],
+      child: ListenableBuilder(
+        listenable: judge,
+        builder: (context, child) {
+          return Row(
+            children: [
+              CellWithText(width: 2, text: judge.name),
+              SquareButton(
+                Icons.remove_circle_outline, 
+                () { 
+                  removeFunction(judge);
+                  competition.saved.value = false;
+                }
+              ),
+            ]
+          );
+        }
       ),
     );
   }

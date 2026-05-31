@@ -10,7 +10,7 @@ import 'package:freestyle_calculator/Data/competition.dart';
 import 'package:freestyle_calculator/Data/model.dart';
 import 'package:freestyle_calculator/Data/sheets_util.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:freestyle_calculator/google_api/web_wrapper.dart' as web;
+import 'package:freestyle_calculator/google_web_wrapper/web_wrapper.dart' as web;
 
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis/sheets/v4.dart' as sheets;
@@ -400,11 +400,11 @@ class _SignInDemoState extends State<SignInDemo> {
     }
   }
 
-  Future<void> _handleSignOut() async {
+  /*Future<void> _handleSignOut() async {
     // Disconnect instead of just signing out, to reset the example state as
     // much as possible.
     await GoogleSignIn.instance.disconnect();
-  }
+  }*/
 
   Widget _buildBody() {
     final GoogleSignInAccount? user = model.currentUser;
@@ -437,9 +437,12 @@ class _SignInDemoState extends State<SignInDemo> {
       //const Text('Авторизация успешна.'),
       if (model.isAuthorized) ...<Widget>[
         // The user has Authorized all required scopes.
-        Container(
-          margin: EdgeInsetsDirectional.only( top: 20),
+        Expanded(
+                child: SingleChildScrollView(
+          //margin: EdgeInsetsDirectional.only( top: 20),
+          padding: EdgeInsets.only(bottom: 80),
           child: Column(
+            spacing: 10,
             children: [
               /*if (_sheets == null)
               ElevatedButton(
@@ -449,7 +452,7 @@ class _SignInDemoState extends State<SignInDemo> {
               if (_sheets != null)
               Text(widget.isImport ? "Выберите из какой таблицы считать" : "Выберите в какую таблицу сохранить"),
               if (_sheets != null)
-              for (var file in _sheets!.sublist(0, min(3, _sheets!.length)))
+              for (var file in _sheets!.sublist(0, min(30, _sheets!.length)))
               ...<Widget>[
                 if (widget.isImport)
                 ElevatedButton(
@@ -458,26 +461,30 @@ class _SignInDemoState extends State<SignInDemo> {
                 ),
                 if (!widget.isImport)
                 ElevatedButton(
-                  child: Text('\'${file.name}\''),
+                  child: Text('${file.name}${file.name}'),
                   onPressed: () => _exportToSheetWithId(user, widget.model.competition!, file.id!),
                 ),
               ]
             ],
           ),
         ),
+        ),
         if (_debugText.isNotEmpty) Text(_debugText, textAlign: .center),
       ] else ...<Widget>[
         // The user has NOT Authorized all required scopes.
-        Column(
-          spacing: 20,
-          children: [
-            Text('Приложению нужны разрешения на доступ к таблицам ${user.email} через Google Диск.', textAlign: .center,),
-            ElevatedButton(
-              onPressed: () => _handleAuthorizeScopes(user),
-              child: const Text('Дать разрешения'),
-            ),
-          ]
-        )
+        Container(
+          margin: EdgeInsetsDirectional.all(10),
+          child: Column(
+            spacing: 20,
+            children: [
+              Text('Приложению нужны разрешения на доступ к таблицам ${user.email} через Google Диск.', textAlign: .center),
+              ElevatedButton(
+                onPressed: () => _handleAuthorizeScopes(user),
+                child: const Text('Дать разрешения'),
+              ),
+            ]
+          )
+        ),
       ],
     ];
   }

@@ -32,6 +32,7 @@ class PairsPage extends StatelessWidget {
               ),
               Expanded(
                 child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: 80),
                   child: Column(
                     mainAxisAlignment: .start,
                     children: [
@@ -45,7 +46,7 @@ class PairsPage extends StatelessWidget {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: competition.addPair,
-            tooltip: 'Increment',
+            tooltip: 'Добавить участника',
             child: const Icon(Icons.add),
           ),
         );
@@ -82,6 +83,13 @@ class PairLine extends StatelessWidget {
               CellWithText(width: 14, text: pair.handlerName),
               CellWithText(width: 14, text: pair.dogBreed),
               CellWithText(width: 14, text: pair.dogName),
+              SquareButton(
+                Icons.remove_circle_outline, 
+                () { 
+                  competition.removePair(pair);
+                  competition.saved.value = false;
+                }
+              ),
             ],
           ),
         ),

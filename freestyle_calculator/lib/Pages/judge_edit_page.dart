@@ -4,11 +4,10 @@ import 'package:freestyle_calculator/Data/judge.dart';
 import 'package:freestyle_calculator/Pages/elements.dart';
 
 class JudgeEditPage extends StatelessWidget {
-  const JudgeEditPage(this.competition, this.judge, this.removeFunction, {super.key});
+  const JudgeEditPage(this.competition, this.judge, {super.key});
 
   final Competition competition;
   final Judge judge;
-  final Function(Judge) removeFunction;
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +31,9 @@ class JudgeEditPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => { removeFunction(judge), Navigator.of(context).pop() },
-        tooltip: 'Remove',
-        child: const Icon(Icons.remove_circle_outline),
+        onPressed: () => { Navigator.of(context).pop() },
+        tooltip: 'Готово',
+        child: const Icon(Icons.done_all),
       ),
     );
   }

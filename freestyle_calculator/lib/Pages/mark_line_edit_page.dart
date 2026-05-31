@@ -62,13 +62,10 @@ class MarkLineEditPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () { 
-          linesBlock.removeLine(markLine); 
-          marksList.updateSum(); 
-          competition.saved.value = false;
           Navigator.of(context).pop(); 
         },
-        tooltip: 'Remove',
-        child: const Icon(Icons.remove_circle_outline),
+        tooltip: 'Готово',
+        child: const Icon(Icons.done_all),
       ),
     );
   }

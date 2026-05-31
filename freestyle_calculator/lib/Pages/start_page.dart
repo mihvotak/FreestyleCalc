@@ -62,102 +62,143 @@ class SatrtPage extends StatelessWidget {
                 Container(),
               ),
 
-              Container(
-                margin: EdgeInsets.all(10),
-                color: Theme.of(context).focusColor,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
-                      color: Theme.of(context).hoverColor,
-                      child: Row(
-                        mainAxisAlignment: .center,
-                        children: [
-                          Expanded(
-                            child: Text("Новый файл", textAlign: .center),
-                          ),
-                          SquareButton(model.expandNew ? Icons.expand_less : Icons.expand_more, model.changeExpandNew)
-                        ],
+              Foldout(
+                caption: "Новый файл",
+                children: [
+                  LineButton("Из шаблона", () { 
+                    if (model.competition != null && !model.competition!.saved.value) {
+                      Dialogs.showConfirmDialog(context, () => model.createFromTemplateAndFill(),
+                        'Не сохранено',
+                        'Текущий открытый файл не сохранён. При создании нового файла все изменения в текущем будут потеряны. Продолжить?'
+                      );
+                    }
+                    else { model.createFromTemplateAndFill(); }
+                  }),
+                  LineButton( 
+                    "Импорт из гуглотаблицы...", 
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => SignInDemo(model, true, false, false),
                       ),
-                    ),
-                    if (model.expandNew)
-                    LineButton("Из шаблона", () { 
-                      if (model.competition != null && !model.competition!.saved.value) {
-                        Dialogs.showConfirmDialog(context, () => model.createFromTemplateAndFill(),
-                          'Не сохранено',
-                          'Текущий открытый файл не сохранён. При создании нового файла все изменения в текущем будут потеряны. Продолжить?'
-                        );
-                      }
-                      else { model.createFromTemplateAndFill(); }
-                    }),
-                    if (model.expandNew)
-                    LineButton( 
-                      "Импорт из гуглотаблицы...", 
-                      () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => SignInDemo(model, true, false, false),
-                        ),
-                      )
-                    ),
-                  ],
-                ),
+                    )
+                  ),
+                ]
               ),
 
               if (model.competition != null)
-              Container(
-                margin: EdgeInsets.all(10),
-                color: Theme.of(context).focusColor,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
-                      color: Theme.of(context).hoverColor,
-                      child: Row(
-                        mainAxisAlignment: .center,
-                        children: [
-                          Expanded(
-                            child: Text("Экспорт в гуглотаблицу", textAlign: .center),
-                          ),
-                          SquareButton(model.expandExport ? Icons.expand_less : Icons.expand_more, model.changeExpandExport)
-                        ],
+              Foldout(
+                caption: "Экспорт в гуглотаблицу",
+                children: [
+                  if (model.expandExport && model.competition!.sheetId != null && model.competition!.sheetName != null)
+                  LineButton( 
+                    "В ту же \"${model.competition!.sheetName}\"", 
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => SignInDemo(model, false, false, true),
                       ),
-                    ),
-                    if (model.expandExport && model.competition!.sheetId != null && model.competition!.sheetName != null)
-                    LineButton( 
-                      "В ту же \"${model.competition!.sheetName}\"", 
-                      () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => SignInDemo(model, false, false, true),
-                        ),
-                      )
-                    ),
-                    if (model.expandExport)
-                    LineButton( 
-                      "В новую таблицу", 
-                      () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => SignInDemo(model, false, true, false),
-                        ),
-                      )
-                    ),
-                    if (model.expandExport)
-                    LineButton( 
-                      "В существующую...", 
-                      () => Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => SignInDemo(model, false, false, false),
-                        ),
-                      )
-                    ),
-                  ],
-                ),
+                    )
+                  ),
+                  LineButton( 
+                    "В новую таблицу", 
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => SignInDemo(model, false, true, false),
+                      ),
+                    )
+                  ),
+                  LineButton( 
+                    "В существующую...", 
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => SignInDemo(model, false, false, false),
+                      ),
+                    )
+                  ),
+                ],
               ),
               
-              //LineButton("Ошибка", () => model.setError("Длинный текст ошибки, который не должен вмещаться в одну строку. Длинный текст ошибки, который не должен вмещаться в одну строку.")),
-              RecentCompetitionsWidget(model),
+              Foldout(
+                caption: "Сохранённые файлы",
+                children: [
+                  model.saves.notes.isEmpty ? 
+                  Text("(пусто))", textAlign: .center) : 
+                  Column(
+                    children: [
+                      for (var note in model.saves.notes)
+                        LineButton('${note.name}${model.competition != null && model.competition!.id == note.id ? ' (открыт)' : ''}', () { 
+                          if (model.competition != null && !model.competition!.saved.value) {
+                            Dialogs.showConfirmDialog(context, 
+                              () => model.loadCompetition(note.id),
+                              'Не сохранено',
+                              'Текущий открытый файл не сохранён. При открытии другого файла все изменения в текущем будут потеряны. Продолжить?'
+                            );
+                          }
+                          else { model.loadCompetition(note.id); }
+                        }),
+                      LineButton('Удалить все', 
+                        () => Dialogs.showConfirmDialog(context, 
+                          model.clearRecent,
+                          'Удаление всех файлов',
+                          'Все сохранённые ранее данные будут удалены. Текущий файл (если открыт) останется в памяти. Увеерны что хотите этого?'
+                        )
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class Foldout extends StatefulWidget {
+  Foldout({required this.caption, required this.children, this.opened = false, super.key});
+
+  final String caption;
+  final List<Widget> children;
+  bool opened;
+
+  @override
+  State<Foldout> createState() => _FoldoutState();
+}
+
+class _FoldoutState extends State<Foldout> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.all(10),
+      color: Theme.of(context).focusColor,
+      child: Column(
+        children: [
+          MaterialButton(
+            onPressed: () {
+              setState(() {
+                widget.opened = !widget.opened;
+              });            },
+            child: Container(
+              constraints: BoxConstraints.expand(height: 50),
+              margin: EdgeInsets.all(1),
+              padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
+              color: Theme.of(context).hoverColor,
+              child: Row(
+                mainAxisAlignment: .center,
+                children: [
+                  Expanded(
+                    child: Text(widget.caption, textAlign: .center),
+                  ),
+                  Icon(widget.opened ? Icons.expand_less : Icons.expand_more)
+                ],
+              ),
+            ),
+          ),
+          if (widget.opened)
+          for (var child in widget.children)
+          child,
+        ],
       ),
     );
   }
@@ -252,65 +293,6 @@ class CompetitionWidget extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class RecentCompetitionsWidget extends StatelessWidget {
-  const RecentCompetitionsWidget(this. model, {super.key});
-
-  final Model model;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: model,
-      builder: (context, child) => Container(
-          margin: EdgeInsets.all(10),
-          color: Theme.of(context).focusColor,
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.fromLTRB(40, 0, 0, 0),
-                color: Theme.of(context).hoverColor,
-                child: Row(
-                  mainAxisAlignment: .center,
-                  children: [
-                    Expanded(
-                      child: Text("Сохранённые файлы", textAlign: .center),
-                    ),
-                    SquareButton(model.expandRecent ? Icons.expand_less : Icons.expand_more, model.changeExpandRecent)
-                  ],
-                ),
-              ),
-              if (model.expandRecent)
-              model.saves.notes.isEmpty ? 
-              Text("(пусто))", textAlign: .center) : 
-              Column(
-                children: [
-                  for (var note in model.saves.notes)
-                    LineButton('${note.name}${model.competition != null && model.competition!.id == note.id ? ' (открыт)' : ''}', () { 
-                      if (model.competition != null && !model.competition!.saved.value) {
-                        Dialogs.showConfirmDialog(context, 
-                          () => model.loadCompetition(note.id),
-                          'Не сохранено',
-                          'Текущий открытый файл не сохранён. При открытии другого файла все изменения в текущем будут потеряны. Продолжить?'
-                        );
-                      }
-                      else { model.loadCompetition(note.id); }
-                    }),
-                  LineButton('Удалить все', 
-                    () => Dialogs.showConfirmDialog(context, 
-                      model.clearRecent,
-                      'Удаление всех файлов',
-                      'Все сохранённые ранее данные будут удалены. Текущий файл (если открыт) останется в памяти. Увеерны что хотите этого?'
-                    )
-                  ),
-                ],
-              ),
-            ],
-          ),
       ),
     );
   }

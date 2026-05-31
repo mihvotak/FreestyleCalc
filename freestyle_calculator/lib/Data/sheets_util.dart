@@ -63,13 +63,13 @@ class SheetsUtil {
         {
           var pair = competition.pairs.firstWhere((p) => p.startNumber == num);
           pair.prepareMarks(competition);
-          for (var (j, judge) in competition.judges.indexed) {
+          for (var (j, _) in competition.judges.indexed) {
             var rowDataJ = rowDatas[index + j];
             var rowValuesJ = rowDataJ.values;
             if (rowValuesJ != null) {
               int i = 6; // столбец G
               for (var (b, block) in competition.marksList.blocks.indexed) {
-                for (var (l, line) in block.lines.indexed) {
+                for (var (l, _) in block.lines.indexed) {
                   var markStr = rowValuesJ[i].formattedValue ?? "";
                   var mark = Mark.fromJson(markStr);
                   pair.judgesMarks[j].blocks[b].marks[l] = mark;
